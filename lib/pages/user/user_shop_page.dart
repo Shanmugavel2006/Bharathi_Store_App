@@ -1,8 +1,79 @@
 import 'package:flutter/material.dart';
 import 'user_checkout_page.dart';
 
-class UserShopPage extends StatelessWidget {
+class UserShopPage extends StatefulWidget {
   const UserShopPage({super.key});
+
+  @override
+  State<UserShopPage> createState() => _UserShopPageState();
+}
+
+class _UserShopPageState extends State<UserShopPage> {
+  final TextEditingController _searchController = TextEditingController();
+
+  final List<Map<String, dynamic>> _allProducts = [
+    {
+      'title': 'Fresh Broccoli',
+      'price': '₹45.00',
+      'isAvailable': true,
+      'tag': 'ORGANIC',
+      'tagColor': const Color(0xFF558B2F),
+      'imageUrl': 'https://images.unsplash.com/photo-1518843875459-f738682238a6?auto=format&fit=crop&w=400&q=80',
+    },
+    {
+      'title': 'Farm Fresh Milk',
+      'price': '₹68.00',
+      'isAvailable': false,
+      'tag': null,
+      'tagColor': null,
+      'imageUrl': 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=400&q=80',
+    },
+    {
+      'title': 'Red Gala Apples',
+      'price': '₹180.00',
+      'isAvailable': true,
+      'tag': 'BEST',
+      'tagColor': const Color(0xFF558B2F),
+      'imageUrl': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6faa6?auto=format&fit=crop&w=400&q=80',
+    },
+    {
+      'title': 'Handmade Cookies',
+      'price': '₹120.00',
+      'isAvailable': true,
+      'tag': null,
+      'tagColor': null,
+      'imageUrl': 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=400&q=80',
+    },
+  ];
+
+  List<Map<String, dynamic>> _filteredProducts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredProducts = _allProducts;
+  }
+
+  void _filterProducts(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredProducts = _allProducts;
+      } else {
+        _filteredProducts = _allProducts
+            .where((product) => product['title']
+                .toString()
+                .toLowerCase()
+                .contains(query.toLowerCase()))
+            .toList();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,10 +83,7 @@ class UserShopPage extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF094D22)),
-            onPressed: () {},
-          ),
+          automaticallyImplyLeading: false,
           title: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -30,7 +98,6 @@ class UserShopPage extends StatelessWidget {
             ],
           ),
           actions: [
-            IconButton(icon: const Icon(Icons.search, color: Color(0xFF094D22)), onPressed: () {}),
             IconButton(
               icon: const Icon(Icons.shopping_bag, color: Color(0xFF094D22)), 
               onPressed: () {
@@ -48,6 +115,33 @@ class UserShopPage extends StatelessWidget {
                 const Text('Good Morning,', style: TextStyle(fontSize: 16, color: Color(0xFF4B5563))),
                 const SizedBox(height: 4),
                 const Text('Welcome, Arjun', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                const SizedBox(height: 20),
+                
+                // Search Field
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _filterProducts,
+                    decoration: const InputDecoration(
+                      icon: Icon(Icons.search, color: Color(0xFF8B7A7B)),
+                      hintText: 'Search products...',
+                      hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 
                 // Filters
@@ -80,34 +174,36 @@ class UserShopPage extends StatelessWidget {
                 const SizedBox(height: 24),
                 
                 // Grid
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 0.65,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  children: [
-                    _buildProductCard(
-                      'Fresh Broccoli', '₹45.00', true, 
-                      tag: 'ORGANIC', tagColor: const Color(0xFF558B2F),
-                      imageColor: Colors.black87,
+                if (_filteredProducts.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text('No products found', style: TextStyle(color: Color(0xFF6B7280), fontSize: 16)),
                     ),
-                    _buildProductCard(
-                      'Farm Fresh Milk', '₹68.00', false,
-                      imageColor: Colors.teal.shade300,
+                  )
+                else
+                  GridView.builder(
+                    itemCount: _filteredProducts.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.65,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
                     ),
-                    _buildProductCard(
-                      'Red Gala Apples', '₹180.00', true,
-                      tag: 'BEST', tagColor: const Color(0xFF558B2F),
-                      imageColor: Colors.black,
-                    ),
-                    _buildProductCard(
-                      'Handmade Cookies', '₹120.00', true,
-                      imageColor: Colors.black,
-                    ),
-                  ],
-                ),
+                    itemBuilder: (context, index) {
+                      final product = _filteredProducts[index];
+                      return _buildProductCard(
+                        product['title'],
+                        product['price'],
+                        product['isAvailable'],
+                        tag: product['tag'],
+                        tagColor: product['tagColor'],
+                        imageUrl: product['imageUrl'],
+                      );
+                    },
+                  ),
                 const SizedBox(height: 20),
               ],
             ),
@@ -128,7 +224,7 @@ class UserShopPage extends StatelessWidget {
     );
   }
 
-  Widget _buildProductCard(String title, String price, bool isAvailable, {String? tag, Color? tagColor, required Color imageColor}) {
+  Widget _buildProductCard(String title, String price, bool isAvailable, {String? tag, Color? tagColor, required String imageUrl}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -144,8 +240,19 @@ class UserShopPage extends StatelessWidget {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: imageColor,
+                    color: const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(16),
+                  ),
+                  width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(child: Icon(Icons.image_not_supported, color: Colors.grey));
+                      },
+                    ),
                   ),
                 ),
                 if (tag != null)

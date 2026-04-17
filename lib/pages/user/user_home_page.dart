@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'user_shop_page.dart';
 import 'user_profile_page.dart';
+import 'user_cart_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -15,7 +16,7 @@ class _UserHomePageState extends State<UserHomePage> {
   final List<Widget> _pages = [
     const UserShopPage(),
     const Center(child: Text('Categories')),
-    const Center(child: Text('Cart')),
+    const UserCartPage(),
     const UserProfilePage(),
   ];
 
@@ -47,7 +48,7 @@ class _UserHomePageState extends State<UserHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.auto_awesome, 'CURATED'),
+                _buildNavItem(0, Icons.home, 'HOME'),
                 _buildNavItem(1, Icons.grid_view, 'CATEGORIES'),
                 _buildNavItem(2, Icons.shopping_cart_outlined, 'CART'),
                 _buildNavItem(3, Icons.person_outline, 'ACCOUNT'),
