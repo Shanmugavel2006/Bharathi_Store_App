@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'admin_orders_page.dart';
 import 'admin_add_product_page.dart';
 import 'admin_manage_items_page.dart';
+import 'admin_users_page.dart';
+import 'admin_dashboard_page.dart';
+import 'admin_analysis_page.dart';
+import 'admin_settings_page.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -14,9 +18,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
+    const AdminDashboardPage(),
     const AdminOrdersPage(),
-    const AdminAddProductPage(),
+    const AdminUsersPage(),
     const AdminManageItemsPage(),
+    const AdminAddProductPage(),
+    const AdminAnalysisPage(),
+    const AdminSettingsPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -32,12 +40,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            _selectedIndex == 1 ? Icons.grid_view : Icons.menu, 
-            color: const Color(0xFF094D22),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF094D22)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
-          onPressed: () {},
         ),
         title: const Text(
           'Verdant Admin',
@@ -58,6 +65,38 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ),
         ],
       ),
+      drawer: Drawer(
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: Color(0xFF094D22)),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.store, color: Color(0xFF094D22), size: 40),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Bharathi Admin', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+            _buildDrawerItem(0, Icons.dashboard_outlined, 'Dashboard'),
+            _buildDrawerItem(1, Icons.receipt_long_outlined, 'Orders'),
+            _buildDrawerItem(3, Icons.inventory_2_outlined, 'Manage Items'),
+            _buildDrawerItem(4, Icons.add_box_outlined, 'Add Product'),
+            _buildDrawerItem(5, Icons.analytics_outlined, 'Analysis'),
+            _buildDrawerItem(2, Icons.people_outline, 'Users'),
+            const Spacer(),
+            _buildDrawerItem(6, Icons.settings_outlined, 'Settings'),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -76,9 +115,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.receipt_long, 'ORDERS'),
-                _buildNavItem(1, Icons.add_circle, 'ADD PRODUCT'),
-                _buildNavItem(2, Icons.archive, 'MANAGE ITEMS'),
+                Expanded(child: _buildNavItem(0, Icons.dashboard, 'DASH')),
+                Expanded(child: _buildNavItem(1, Icons.receipt_long, 'ORDERS')),
+                Expanded(child: _buildNavItem(3, Icons.inventory_2, 'ITEMS')),
+                Expanded(child: _buildNavItem(2, Icons.people, 'USERS')),
               ],
             ),
           ),
@@ -92,7 +132,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return GestureDetector(
       onTap: () => _onItemTapped(index),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: isSelected
             ? BoxDecoration(
                 color: const Color(0xFFE5F5E9),
@@ -105,14 +145,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
             Icon(
               iconData,
               color: isSelected ? const Color(0xFF094D22) : const Color(0xFF8B7A7B).withOpacity(0.8),
-              size: 24,
+              size: 22,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 color: isSelected ? const Color(0xFF094D22) : const Color(0xFF8B7A7B).withOpacity(0.8),
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
@@ -120,6 +160,26 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDrawerItem(int index, IconData icon, String title) {
+    final isSelected = _selectedIndex == index;
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? const Color(0xFF094D22) : Colors.grey[600]),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? const Color(0xFF094D22) : Colors.grey[800],
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: const Color(0xFFE5F5E9),
+      onTap: () {
+        _onItemTapped(index);
+        Navigator.pop(context);
+      },
     );
   }
 }

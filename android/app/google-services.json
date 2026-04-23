@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1021448485049",
+    "project_id": "bharathistore-1f09a",
+    "storage_bucket": "bharathistore-1f09a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1021448485049:android:2aea2131a682a4fb604368",
+        "android_client_info": {
+          "package_name": "com.example.bharathi_store"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8B8RZnPvSajThyfTnEVgXheeCf-MCjmg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

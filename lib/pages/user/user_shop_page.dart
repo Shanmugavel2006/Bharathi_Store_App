@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../login_page.dart';
 import 'user_checkout_page.dart';
 
 class UserShopPage extends StatefulWidget {
@@ -10,69 +13,80 @@ class UserShopPage extends StatefulWidget {
 
 class _UserShopPageState extends State<UserShopPage> {
   final TextEditingController _searchController = TextEditingController();
+  String _selectedFilter = 'All';
+  String _searchQuery = '';
 
-  final List<Map<String, dynamic>> _allProducts = [
-    {
-      'title': 'Fresh Broccoli',
-      'price': '₹45.00',
-      'isAvailable': true,
-      'tag': 'ORGANIC',
-      'tagColor': const Color(0xFF558B2F),
-      'imageUrl': 'https://images.unsplash.com/photo-1518843875459-f738682238a6?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      'title': 'Farm Fresh Milk',
-      'price': '₹68.00',
-      'isAvailable': false,
-      'tag': null,
-      'tagColor': null,
-      'imageUrl': 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      'title': 'Red Gala Apples',
-      'price': '₹180.00',
-      'isAvailable': true,
-      'tag': 'BEST',
-      'tagColor': const Color(0xFF558B2F),
-      'imageUrl': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6faa6?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      'title': 'Handmade Cookies',
-      'price': '₹120.00',
-      'isAvailable': true,
-      'tag': null,
-      'tagColor': null,
-      'imageUrl': 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=400&q=80',
-    },
-  ];
-
-  List<Map<String, dynamic>> _filteredProducts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredProducts = _allProducts;
-  }
-
-  void _filterProducts(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredProducts = _allProducts;
-      } else {
-        _filteredProducts = _allProducts
-            .where((product) => product['title']
-                .toString()
-                .toLowerCase()
-                .contains(query.toLowerCase()))
-            .toList();
-      }
-    });
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning,';
+    if (hour < 17) return 'Good Afternoon,';
+    return 'Good Evening,';
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _addToCart(Map<String, dynamic> product) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final cartRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('cart');
+
+      // Check if item already exists
+      final existing = await cartRef.where('title', isEqualTo: product['title']).get();
+      
+      if (existing.docs.isNotEmpty) {
+        // Increment quantity
+        await cartRef.doc(existing.docs.first.id).update({
+          'quantity': FieldValue.increment(1),
+        });
+      } else {
+        // Add new item
+        await cartRef.add({
+          'title': product['title'],
+          'price': product['price'],
+          'imageUrl': product['imageUrl'],
+          'quantity': 1,
+          'tag': product['tag'],
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${product['title']} added to cart'),
+            backgroundColor: const Color(0xFF094D22),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add to cart: $e')),
+        );
+      }
+    }
+  }
+
+  void _buyNow(Map<String, dynamic> product) async {
+    // For Buy Now, we can either clear cart and add this, or just pass it to checkout
+    // Let's just add to cart and navigate to checkout
+    await _addToCart(product);
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const UserCheckoutPage()),
+      );
+    }
   }
 
   @override
@@ -84,24 +98,49 @@ class _UserShopPageState extends State<UserShopPage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           automaticallyImplyLeading: false,
-          title: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          toolbarHeight: 70,
+          title: Row(
             children: [
-              Text(
-                'Bharathi',
-                style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),
+              // REQUIREMENT 1: Logo before shop name
+              Image.asset(
+                'assets/images/logo.png',
+                height: 45,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.store, color: Color(0xFF094D22), size: 40),
               ),
-              Text(
-                'Departmental Store',
-                style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bharathi',
+                    style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  Text(
+                    'Departmental Store',
+                    style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ],
               ),
             ],
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.shopping_bag, color: Color(0xFF094D22)), 
+              icon: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF094D22)), 
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const UserCheckoutPage()));
+              }
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout, color: Color(0xFF094D22)), 
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false
+                  );
+                }
               }
             ),
           ],
@@ -112,9 +151,19 @@ class _UserShopPageState extends State<UserShopPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Good Morning,', style: TextStyle(fontSize: 16, color: Color(0xFF4B5563))),
+                // REQUIREMENT 2: Time based greeting
+                Text(_getGreeting(), style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280))),
                 const SizedBox(height: 4),
-                const Text('Welcome, Arjun', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+                  builder: (context, snapshot) {
+                    String name = "User";
+                    if (snapshot.hasData && snapshot.data!.exists) {
+                      name = snapshot.data!.get('name') ?? "User";
+                    }
+                    return Text('Welcome, $name', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF094D22)));
+                  }
+                ),
                 const SizedBox(height: 20),
                 
                 // Search Field
@@ -123,17 +172,11 @@ class _UserShopPageState extends State<UserShopPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 2))],
                   ),
                   child: TextField(
                     controller: _searchController,
-                    onChanged: _filterProducts,
+                    onChanged: (val) => setState(() => _searchQuery = val),
                     decoration: const InputDecoration(
                       icon: Icon(Icons.search, color: Color(0xFF8B7A7B)),
                       hintText: 'Search products...',
@@ -144,9 +187,9 @@ class _UserShopPageState extends State<UserShopPage> {
                 ),
                 const SizedBox(height: 24),
                 
-                // Filters
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                // REQUIREMENT 3: Filter container managed by Admin
+                SizedBox(
+                  height: 45,
                   child: Row(
                     children: [
                       Container(
@@ -156,54 +199,98 @@ class _UserShopPageState extends State<UserShopPage> {
                           children: [
                             Icon(Icons.tune, color: Colors.white, size: 16),
                             SizedBox(width: 8),
-                            Text('Filter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text('Filter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
                       ),
                       const SizedBox(width: 12),
                       Container(width: 1, height: 24, color: const Color(0xFFE5E7EB)),
                       const SizedBox(width: 12),
-                      _buildFilterChip('Vegetables'),
-                      const SizedBox(width: 12),
-                      _buildFilterChip('Fruits'),
-                      const SizedBox(width: 12),
-                      _buildFilterChip('Dairy'),
+                      Expanded(
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance.collection('filters').snapshots(),
+                          builder: (context, snapshot) {
+                            List<String> filters = ['All'];
+                            if (snapshot.hasData) {
+                              for (var doc in snapshot.data!.docs) {
+                                filters.add(doc['name']);
+                              }
+                            }
+                            return ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: filters.length,
+                              separatorBuilder: (context, index) => const SizedBox(width: 12),
+                              itemBuilder: (context, index) {
+                                final label = filters[index];
+                                final isSelected = _selectedFilter == label;
+                                return GestureDetector(
+                                  onTap: () => setState(() => _selectedFilter = label),
+                                  child: _buildFilterChip(label, isSelected),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
                 
-                // Grid
-                if (_filteredProducts.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Text('No products found', style: TextStyle(color: Color(0xFF6B7280), fontSize: 16)),
-                    ),
-                  )
-                else
-                  GridView.builder(
-                    itemCount: _filteredProducts.length,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.65,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemBuilder: (context, index) {
-                      final product = _filteredProducts[index];
-                      return _buildProductCard(
-                        product['title'],
-                        product['price'],
-                        product['isAvailable'],
-                        tag: product['tag'],
-                        tagColor: product['tagColor'],
-                        imageUrl: product['imageUrl'],
-                      );
-                    },
-                  ),
+                // REQUIREMENT 4/LOGIC: Fetch live products from Firebase
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('products').snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('No products available')));
+                    }
+
+                    var docs = snapshot.data!.docs;
+
+                    // Filter Logic: Category
+                    if (_selectedFilter != 'All') {
+                      docs = docs.where((doc) => doc['category'] == _selectedFilter).toList();
+                    }
+
+                    // Filter Logic: Search
+                    if (_searchQuery.isNotEmpty) {
+                      docs = docs.where((doc) => 
+                        (doc['title'] as String).toLowerCase().contains(_searchQuery.toLowerCase())
+                      ).toList();
+                    }
+
+                    if (docs.isEmpty) {
+                      return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('Matching products not found')));
+                    }
+
+                    return GridView.builder(
+                      itemCount: docs.length,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.62,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemBuilder: (context, index) {
+                        final product = docs[index].data() as Map<String, dynamic>;
+                        return _buildProductCard(
+                          product,
+                          product['title'] ?? 'No Name',
+                          product['price'] ?? '₹0',
+                          product['isAvailable'] ?? true,
+                          tag: product['tag'] as String?,
+                          tagColorHex: product['tagColorHex'] as String?,
+                          imageUrl: product['imageUrl'] ?? '',
+                        );
+                      },
+                    );
+                  },
+                ),
                 const SizedBox(height: 20),
               ],
             ),
@@ -213,25 +300,37 @@ class _UserShopPageState extends State<UserShopPage> {
     );
   }
 
-  Widget _buildFilterChip(String label) {
+  Widget _buildFilterChip(String label, bool isSelected) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
+        color: isSelected ? const Color(0xFFE5F5E9) : const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(12),
+        border: isSelected ? Border.all(color: const Color(0xFF094D22), width: 1.5) : null,
       ),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E1E1E))),
+      child: Center(
+        child: Text(
+          label, 
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: 13,
+            color: isSelected ? const Color(0xFF094D22) : const Color(0xFF6B7280)
+          )
+        ),
+      ),
     );
   }
 
-  Widget _buildProductCard(String title, String price, bool isAvailable, {String? tag, Color? tagColor, required String imageUrl}) {
+  Widget _buildProductCard(Map<String, dynamic> productData, String title, String price, bool isAvailable, {String? tag, String? tagColorHex, required String imageUrl}) {
+    Color? tagColor = tagColorHex != null ? Color(int.parse(tagColorHex.replaceFirst('#', '0xff'))) : Colors.green;
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -239,75 +338,62 @@ class _UserShopPageState extends State<UserShopPage> {
             child: Stack(
               children: [
                 Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(16)),
                   width: double.infinity,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(child: Icon(Icons.image_not_supported, color: Colors.grey));
-                      },
+                      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.image, color: Colors.grey)),
                     ),
                   ),
                 ),
                 if (tag != null)
                   Positioned(
-                    top: 12,
-                    left: 12,
+                    top: 8,
+                    left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(color: tagColor, borderRadius: BorderRadius.circular(8)),
-                      child: Text(tag, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                      child: Text(tag, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E1E1E)), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 10),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E1E1E)), maxLines: 1),
           const SizedBox(height: 4),
           Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF094D22))),
           const SizedBox(height: 4),
           Row(
             children: [
-              Container(width: 4, height: 4, decoration: BoxDecoration(color: isAvailable ? const Color(0xFF4CAF50) : const Color(0xFFD32F2F), shape: BoxShape.circle)),
+              Container(width: 6, height: 6, decoration: BoxDecoration(color: isAvailable ? Colors.green : Colors.red, shape: BoxShape.circle)),
               const SizedBox(width: 4),
-              Text(isAvailable ? 'AVAILABLE' : 'UNAVAILABLE', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: isAvailable ? const Color(0xFF094D22) : const Color(0xFFD32F2F))),
+              Text(isAvailable ? 'AVAILABLE' : 'UNAVAILABLE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isAvailable ? const Color(0xFF094D22) : Colors.red)),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isAvailable ? const Color(0xFF98F598) : const Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.shopping_cart, color: isAvailable ? const Color(0xFF094D22) : const Color(0xFF6B7280), size: 20),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
+              GestureDetector(
+                onTap: isAvailable ? () => _addToCart(productData) : null,
                 child: Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: isAvailable ? const Color(0xFF094D22) : const Color(0xFFE5E7EB),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    isAvailable ? 'Buy Now' : 'Notify',
-                    style: TextStyle(
-                      color: isAvailable ? Colors.white : const Color(0xFF6B7280),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(color: isAvailable ? const Color(0xFF98F598) : const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.shopping_cart, color: isAvailable ? const Color(0xFF094D22) : const Color(0xFF9CA3AF), size: 18),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: GestureDetector(
+                  onTap: isAvailable ? () => _buyNow(productData) : null,
+                  child: Container(
+                    height: 36,
+                    decoration: BoxDecoration(color: isAvailable ? const Color(0xFF094D22) : const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)),
+                    alignment: Alignment.center,
+                    child: Text(isAvailable ? 'Buy Now' : 'Notify', style: TextStyle(color: isAvailable ? Colors.white : const Color(0xFF9CA3AF), fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'user_shop_page.dart';
+import 'user_category_page.dart';
 import 'user_profile_page.dart';
 import 'user_cart_page.dart';
 
@@ -12,24 +13,40 @@ class UserHomePage extends StatefulWidget {
 
 class _UserHomePageState extends State<UserHomePage> {
   int _selectedIndex = 0;
+  final List<int> _navigationQueue = [0];
 
   final List<Widget> _pages = [
     const UserShopPage(),
-    const Center(child: Text('Categories')),
+    const UserCategoryPage(),
     const UserCartPage(),
     const UserProfilePage(),
   ];
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (_selectedIndex != index) {
+      setState(() {
+        _navigationQueue.remove(index);
+        _navigationQueue.add(index);
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_navigationQueue.length > 1) {
+          setState(() {
+            _navigationQueue.removeLast();
+            _selectedIndex = _navigationQueue.last;
+          });
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -56,6 +73,7 @@ class _UserHomePageState extends State<UserHomePage> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
