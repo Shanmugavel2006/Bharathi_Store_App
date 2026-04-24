@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../../providers/theme_provider.dart';
 import 'user_checkout_page.dart';
 
 class UserCartPage extends StatefulWidget {
@@ -19,24 +21,35 @@ class _UserCartPageState extends State<UserCartPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Please login to view cart')));
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(
+          child: Text(
+            'Please login to view cart',
+            style: TextStyle(color: isDark ? Colors.white : Colors.black),
+          )
+        )
+      );
     }
 
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+            icon: Icon(Icons.arrow_back, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text(
+          title: Text(
             'Bharathi Store',
-            style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),
+            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),
           ),
         ),
         body: StreamBuilder<QuerySnapshot>(
@@ -51,9 +64,12 @@ class _UserCartPageState extends State<UserCartPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[300]),
+                    Icon(Icons.shopping_cart_outlined, size: 80, color: isDark ? Colors.grey[800] : Colors.grey[300]),
                     const SizedBox(height: 16),
-                    const Text('Your cart is empty', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                    Text(
+                      'Your cart is empty', 
+                      style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey, fontSize: 16)
+                    ),
                   ],
                 ),
               );
@@ -74,14 +90,23 @@ class _UserCartPageState extends State<UserCartPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'YOUR SELECTION',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFF094D22)),
+                      style: TextStyle(
+                        fontSize: 10, 
+                        fontWeight: FontWeight.bold, 
+                        letterSpacing: 1.2, 
+                        color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Shopping Cart',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF094D22)),
+                      style: TextStyle(
+                        fontSize: 28, 
+                        fontWeight: FontWeight.bold, 
+                        color: isDark ? Colors.white : const Color(0xFF094D22)
+                      ),
                     ),
                     const SizedBox(height: 24),
                     
@@ -99,6 +124,7 @@ class _UserCartPageState extends State<UserCartPage> {
                           subtitle: data['tag'] ?? 'General',
                           price: data['price'] ?? '₹0',
                           quantity: data['quantity'] ?? 1,
+                          isDark: isDark,
                         );
                       },
                     ),
@@ -108,35 +134,76 @@ class _UserCartPageState extends State<UserCartPage> {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEEEEEE),
+                        color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEEEEEE),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Order Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E1E1E))),
+                          Text(
+                            'Order Summary', 
+                            style: TextStyle(
+                              fontSize: 16, 
+                              fontWeight: FontWeight.bold, 
+                              color: isDark ? Colors.white : const Color(0xFF1E1E1E)
+                            )
+                          ),
                           const SizedBox(height: 20),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Subtotal', style: TextStyle(color: Color(0xFF4B5563), fontSize: 13)),
-                              Text('₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFF1E1E1E), fontSize: 13, fontWeight: FontWeight.bold)),
+                              Text(
+                                'Subtotal', 
+                                style: TextStyle(color: isDark ? Colors.grey[400] : const Color(0xFF4B5563), fontSize: 13)
+                              ),
+                              Text(
+                                '₹${subtotal.toStringAsFixed(2)}', 
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : const Color(0xFF1E1E1E), 
+                                  fontSize: 13, 
+                                  fontWeight: FontWeight.bold
+                                )
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Delivery Fee', style: TextStyle(color: Color(0xFF4B5563), fontSize: 13)),
-                              Text(deliveryFee == 0 ? 'Free' : '₹${deliveryFee.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFF1E1E1E), fontSize: 13, fontWeight: FontWeight.bold)),
+                              Text(
+                                'Delivery Fee', 
+                                style: TextStyle(color: isDark ? Colors.grey[400] : const Color(0xFF4B5563), fontSize: 13)
+                              ),
+                              Text(
+                                deliveryFee == 0 ? 'Free' : '₹${deliveryFee.toStringAsFixed(2)}', 
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : const Color(0xFF1E1E1E), 
+                                  fontSize: 13, 
+                                  fontWeight: FontWeight.bold
+                                )
+                              ),
                             ],
                           ),
                           const SizedBox(height: 24),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Total', style: TextStyle(color: Color(0xFF094D22), fontSize: 20, fontWeight: FontWeight.bold)),
-                              Text('₹${total.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFF094D22), fontSize: 20, fontWeight: FontWeight.bold)),
+                              Text(
+                                'Total', 
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22), 
+                                  fontSize: 20, 
+                                  fontWeight: FontWeight.bold
+                                )
+                              ),
+                              Text(
+                                '₹${total.toStringAsFixed(2)}', 
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22), 
+                                  fontSize: 20, 
+                                  fontWeight: FontWeight.bold
+                                )
+                              ),
                             ],
                           ),
                           const SizedBox(height: 24),
@@ -152,7 +219,10 @@ class _UserCartPageState extends State<UserCartPage> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 elevation: 0,
                               ),
-                              child: const Text('Proceed to Checkout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                              child: const Text(
+                                'Proceed to Checkout', 
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                              ),
                             ),
                           ),
                         ],
@@ -176,12 +246,13 @@ class _UserCartPageState extends State<UserCartPage> {
     required String subtitle,
     required String price,
     required int quantity,
+    required bool isDark,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
       ),
@@ -190,7 +261,7 @@ class _UserCartPageState extends State<UserCartPage> {
         children: [
           Container(
             width: 80, height: 80,
-            decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: isDark ? Colors.grey[900] : const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(12)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.image, color: Colors.grey)),
@@ -204,18 +275,40 @@ class _UserCartPageState extends State<UserCartPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E1E1E)))),
-                    Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E1E1E))),
+                    Expanded(
+                      child: Text(
+                        title, 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 14, 
+                          color: isDark ? Colors.white : const Color(0xFF1E1E1E)
+                        )
+                      )
+                    ),
+                    Text(
+                      price, 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 14, 
+                        color: isDark ? Colors.white : const Color(0xFF1E1E1E)
+                      )
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                Text(
+                  subtitle, 
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[500] : const Color(0xFF6B7280))
+                ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      decoration: BoxDecoration(color: const Color(0xFF98F598), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF094D22).withOpacity(0.3) : const Color(0xFF98F598), 
+                        borderRadius: BorderRadius.circular(8)
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       child: Row(
                         children: [
@@ -225,22 +318,29 @@ class _UserCartPageState extends State<UserCartPage> {
                                 FirebaseFirestore.instance.collection('users').doc(user!.uid).collection('cart').doc(docId).update({'quantity': quantity - 1});
                               }
                             },
-                            child: const Icon(Icons.remove, size: 14, color: Color(0xFF094D22)),
+                            child: Icon(Icons.remove, size: 14, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
                           ),
                           const SizedBox(width: 16),
-                          Text('$quantity', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF094D22))),
+                          Text(
+                            '$quantity', 
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold, 
+                              fontSize: 13, 
+                              color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)
+                            )
+                          ),
                           const SizedBox(width: 16),
                           GestureDetector(
                             onTap: () {
                               FirebaseFirestore.instance.collection('users').doc(user!.uid).collection('cart').doc(docId).update({'quantity': quantity + 1});
                             },
-                            child: const Icon(Icons.add, size: 14, color: Color(0xFF094D22)),
+                            child: Icon(Icons.add, size: 14, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete, color: Color(0xFF4B5563), size: 20),
+                      icon: Icon(Icons.delete, color: isDark ? Colors.grey[600] : const Color(0xFF4B5563), size: 20),
                       onPressed: () => FirebaseFirestore.instance.collection('users').doc(user!.uid).collection('cart').doc(docId).delete(),
                     ),
                   ],

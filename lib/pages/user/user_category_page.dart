@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../../providers/theme_provider.dart';
 
 class UserCategoryPage extends StatefulWidget {
   const UserCategoryPage({super.key});
@@ -13,20 +15,30 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+            icon: Icon(Icons.arrow_back, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text('Categories', style: TextStyle(color: Color(0xFF1E1E1E), fontWeight: FontWeight.bold, fontSize: 18)),
+          title: Text(
+            'Categories', 
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF1E1E1E), 
+              fontWeight: FontWeight.bold, 
+              fontSize: 18
+            )
+          ),
           actions: [
-            IconButton(icon: const Icon(Icons.search, color: Color(0xFF094D22)), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.mic, color: Color(0xFF094D22)), onPressed: () {}),
+            IconButton(icon: Icon(Icons.search, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)), onPressed: () {}),
+            IconButton(icon: Icon(Icons.mic, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)), onPressed: () {}),
           ],
         ),
         body: StreamBuilder<QuerySnapshot>(
@@ -37,7 +49,7 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
             }
 
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return const Center(child: Text('No categories available'));
+              return Center(child: Text('No categories available', style: TextStyle(color: isDark ? Colors.white : Colors.black)));
             }
 
             final categories = snapshot.data!.docs.map((doc) => doc['name'] as String).toList();
@@ -48,7 +60,7 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                 // Left Side Panel
                 Container(
                   width: 100,
-                  color: Colors.white,
+                  color: isDark ? const Color(0xFF121212) : Colors.white,
                   child: ListView.builder(
                     itemCount: categories.length,
                     itemBuilder: (context, index) {
@@ -62,10 +74,12 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFE5F5E9) : Colors.white,
+                            color: isSelected 
+                              ? (isDark ? const Color(0xFF094D22).withOpacity(0.3) : const Color(0xFFE5F5E9)) 
+                              : (isDark ? const Color(0xFF121212) : Colors.white),
                             border: Border(
                               left: BorderSide(
-                                color: isSelected ? const Color(0xFF094D22) : Colors.transparent,
+                                color: isSelected ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) : Colors.transparent,
                                 width: 4,
                               ),
                             ),
@@ -77,11 +91,15 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: isSelected ? const Color(0xFF98F598).withOpacity(0.3) : const Color(0xFFF3F4F6),
+                                  color: isSelected 
+                                    ? (isDark ? const Color(0xFF81C784).withOpacity(0.2) : const Color(0xFF98F598).withOpacity(0.3)) 
+                                    : (isDark ? Colors.grey[900] : const Color(0xFFF3F4F6)),
                                 ),
                                 child: Icon(
                                   _getCategoryIcon(categories[index]),
-                                  color: isSelected ? const Color(0xFF094D22) : const Color(0xFF8B7A7B),
+                                  color: isSelected 
+                                    ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+                                    : (isDark ? Colors.grey[600] : const Color(0xFF8B7A7B)),
                                   size: 24,
                                 ),
                               ),
@@ -92,7 +110,9 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected ? const Color(0xFF094D22) : const Color(0xFF6B7280),
+                                  color: isSelected 
+                                    ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+                                    : (isDark ? Colors.grey[500] : const Color(0xFF6B7280)),
                                 ),
                               ),
                             ],
@@ -106,14 +126,18 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                 // Right Side Content
                 Expanded(
                   child: Container(
-                    color: const Color(0xFFF9FAFB),
+                    color: Theme.of(context).scaffoldBackgroundColor,
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           _selectedCategory!,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E1E1E)),
+                          style: TextStyle(
+                            fontSize: 16, 
+                            fontWeight: FontWeight.bold, 
+                            color: isDark ? Colors.white : const Color(0xFF1E1E1E)
+                          ),
                         ),
                         const SizedBox(height: 20),
                         Expanded(
@@ -127,7 +151,7 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                                 return const Center(child: CircularProgressIndicator());
                               }
                               if (!productSnapshot.hasData || productSnapshot.data!.docs.isEmpty) {
-                                return const Center(child: Text('No products in this category'));
+                                return Center(child: Text('No products in this category', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey)));
                               }
 
                               final products = productSnapshot.data!.docs;
@@ -136,7 +160,7 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                                 itemCount: products.length,
                                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 3,
-                                  childAspectRatio: 0.8,
+                                  childAspectRatio: 0.65, // Increased vertical space to prevent overflow
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 16,
                                 ),
@@ -147,7 +171,7 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                                     children: [
                                       Container(
                                         decoration: BoxDecoration(
-                                          color: Colors.white,
+                                          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                                           shape: BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
@@ -159,7 +183,7 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                                         ),
                                         child: CircleAvatar(
                                           radius: 32,
-                                          backgroundColor: const Color(0xFFF3F4F6),
+                                          backgroundColor: isDark ? Colors.grey[900] : const Color(0xFFF3F4F6),
                                           backgroundImage: NetworkImage(product['imageUrl'] ?? ''),
                                           onBackgroundImageError: (e, s) {},
                                         ),
@@ -168,7 +192,11 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                                       Text(
                                         product['title'] ?? 'Product',
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF4B5563)),
+                                        style: TextStyle(
+                                          fontSize: 10, 
+                                          fontWeight: FontWeight.w600, 
+                                          color: isDark ? Colors.grey[400] : const Color(0xFF4B5563)
+                                        ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),

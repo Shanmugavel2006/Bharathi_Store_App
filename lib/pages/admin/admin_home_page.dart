@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../../providers/user_settings_provider.dart';
+import '../../providers/theme_provider.dart';
 import 'admin_orders_page.dart';
 import 'admin_add_product_page.dart';
 import 'admin_manage_items_page.dart';
@@ -35,37 +39,48 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final userSettings = Provider.of<UserSettingsProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF094D22)),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : const Color(0xFF094D22)),
+          onPressed: () async {
+            await FirebaseAuth.instance.signOut();
+          },
         ),
-        title: const Text(
-          'Verdant Admin',
+        title: Text(
+          'Bharathi Store Admin',
           style: TextStyle(
-            color: Color(0xFF094D22),
+            color: isDark ? Colors.white : const Color(0xFF094D22),
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: Icon(Icons.menu, color: isDark ? Colors.white : const Color(0xFF094D22)),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
               backgroundColor: const Color(0xFF094D22),
-              radius: 16,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
+              radius: 18,
+              backgroundImage: NetworkImage(userSettings.profileImageUrl),
             ),
           ),
         ],
       ),
       drawer: Drawer(
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         child: Column(
           children: [
             DrawerHeader(
@@ -85,14 +100,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ),
               ),
             ),
-            _buildDrawerItem(0, Icons.dashboard_outlined, 'Dashboard'),
-            _buildDrawerItem(1, Icons.receipt_long_outlined, 'Orders'),
-            _buildDrawerItem(3, Icons.inventory_2_outlined, 'Manage Items'),
-            _buildDrawerItem(4, Icons.add_box_outlined, 'Add Product'),
-            _buildDrawerItem(5, Icons.analytics_outlined, 'Analysis'),
-            _buildDrawerItem(2, Icons.people_outline, 'Users'),
+            _buildDrawerItem(0, Icons.dashboard_outlined, 'Dashboard', isDark),
+            _buildDrawerItem(1, Icons.receipt_long_outlined, 'Orders', isDark),
+            _buildDrawerItem(3, Icons.inventory_2_outlined, 'Manage Items', isDark),
+            _buildDrawerItem(4, Icons.add_box_outlined, 'Add Product', isDark),
+            _buildDrawerItem(5, Icons.analytics_outlined, 'Analysis', isDark),
+            _buildDrawerItem(2, Icons.people_outline, 'Users', isDark),
             const Spacer(),
-            _buildDrawerItem(6, Icons.settings_outlined, 'Settings'),
+            _buildDrawerItem(6, Icons.settings_outlined, 'Settings', isDark),
             const SizedBox(height: 20),
           ],
         ),
@@ -100,7 +115,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -115,10 +130,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Expanded(child: _buildNavItem(0, Icons.dashboard, 'DASH')),
-                Expanded(child: _buildNavItem(1, Icons.receipt_long, 'ORDERS')),
-                Expanded(child: _buildNavItem(3, Icons.inventory_2, 'ITEMS')),
-                Expanded(child: _buildNavItem(2, Icons.people, 'USERS')),
+                Expanded(child: _buildNavItem(0, Icons.dashboard, 'DASH', isDark)),
+                Expanded(child: _buildNavItem(1, Icons.receipt_long, 'ORDERS', isDark)),
+                Expanded(child: _buildNavItem(3, Icons.inventory_2, 'ITEMS', isDark)),
+                Expanded(child: _buildNavItem(2, Icons.people, 'USERS', isDark)),
               ],
             ),
           ),
@@ -127,7 +142,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData iconData, String label) {
+  Widget _buildNavItem(int index, IconData iconData, String label, bool isDark) {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => _onItemTapped(index),
@@ -135,7 +150,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: isSelected
             ? BoxDecoration(
-                color: const Color(0xFFE5F5E9),
+                color: isDark ? const Color(0xFF2E7D32).withOpacity(0.2) : const Color(0xFFE5F5E9),
                 borderRadius: BorderRadius.circular(12),
               )
             : null,
@@ -144,14 +159,18 @@ class _AdminHomePageState extends State<AdminHomePage> {
           children: [
             Icon(
               iconData,
-              color: isSelected ? const Color(0xFF094D22) : const Color(0xFF8B7A7B).withOpacity(0.8),
+              color: isSelected 
+                ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+                : (isDark ? Colors.grey[500] : const Color(0xFF8B7A7B).withOpacity(0.8)),
               size: 22,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF094D22) : const Color(0xFF8B7A7B).withOpacity(0.8),
+                color: isSelected 
+                  ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+                  : (isDark ? Colors.grey[500] : const Color(0xFF8B7A7B).withOpacity(0.8)),
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -163,19 +182,23 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Widget _buildDrawerItem(int index, IconData icon, String title) {
+  Widget _buildDrawerItem(int index, IconData icon, String title, bool isDark) {
     final isSelected = _selectedIndex == index;
     return ListTile(
-      leading: Icon(icon, color: isSelected ? const Color(0xFF094D22) : Colors.grey[600]),
+      leading: Icon(icon, color: isSelected 
+        ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+        : (isDark ? Colors.grey[400] : Colors.grey[600])),
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected ? const Color(0xFF094D22) : Colors.grey[800],
+          color: isSelected 
+            ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+            : (isDark ? Colors.grey[300] : Colors.grey[800]),
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
       selected: isSelected,
-      selectedTileColor: const Color(0xFFE5F5E9),
+      selectedTileColor: isDark ? const Color(0xFF2E7D32).withOpacity(0.1) : const Color(0xFFE5F5E9),
       onTap: () {
         _onItemTapped(index);
         Navigator.pop(context);

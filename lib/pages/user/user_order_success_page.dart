@@ -10,8 +10,10 @@ class UserOrderSuccessPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const SizedBox.shrink(),
-        leadingWidth: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Bharathi Store', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 20)),
         actions: [
           IconButton(icon: const Icon(Icons.shopping_bag, color: Color(0xFF094D22)), onPressed: () {}),

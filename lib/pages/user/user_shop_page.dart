@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../../providers/theme_provider.dart';
 import '../login_page.dart';
 import 'user_checkout_page.dart';
 
@@ -78,8 +80,6 @@ class _UserShopPageState extends State<UserShopPage> {
   }
 
   void _buyNow(Map<String, dynamic> product) async {
-    // For Buy Now, we can either clear cart and add this, or just pass it to checkout
-    // Let's just add to cart and navigate to checkout
     await _addToCart(product);
     if (mounted) {
       Navigator.push(
@@ -91,9 +91,12 @@ class _UserShopPageState extends State<UserShopPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -101,23 +104,22 @@ class _UserShopPageState extends State<UserShopPage> {
           toolbarHeight: 70,
           title: Row(
             children: [
-              // REQUIREMENT 1: Logo before shop name
               Image.asset(
                 'assets/images/logo.png',
                 height: 45,
-                errorBuilder: (context, error, stackTrace) => const Icon(Icons.store, color: Color(0xFF094D22), size: 40),
+                errorBuilder: (context, error, stackTrace) => Icon(Icons.store, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22), size: 40),
               ),
               const SizedBox(width: 12),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Bharathi',
-                    style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),
+                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                   Text(
                     'Departmental Store',
-                    style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.w600, fontSize: 14),
+                    style: TextStyle(color: isDark ? Colors.grey[400] : const Color(0xFF094D22), fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                 ],
               ),
@@ -125,13 +127,13 @@ class _UserShopPageState extends State<UserShopPage> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF094D22)), 
+              icon: Icon(Icons.shopping_bag_outlined, color: isDark ? Colors.white : const Color(0xFF094D22)), 
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const UserCheckoutPage()));
               }
             ),
             IconButton(
-              icon: const Icon(Icons.logout, color: Color(0xFF094D22)), 
+              icon: Icon(Icons.logout, color: isDark ? Colors.white : const Color(0xFF094D22)), 
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
                 if (mounted) {
@@ -151,8 +153,7 @@ class _UserShopPageState extends State<UserShopPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // REQUIREMENT 2: Time based greeting
-                Text(_getGreeting(), style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280))),
+                Text(_getGreeting(), style: TextStyle(fontSize: 16, color: isDark ? Colors.grey[500] : const Color(0xFF6B7280))),
                 const SizedBox(height: 4),
                 StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
@@ -161,7 +162,14 @@ class _UserShopPageState extends State<UserShopPage> {
                     if (snapshot.hasData && snapshot.data!.exists) {
                       name = snapshot.data!.get('name') ?? "User";
                     }
-                    return Text('Welcome, $name', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF094D22)));
+                    return Text(
+                      'Welcome, $name', 
+                      style: TextStyle(
+                        fontSize: 28, 
+                        fontWeight: FontWeight.bold, 
+                        color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)
+                      )
+                    );
                   }
                 ),
                 const SizedBox(height: 20),
@@ -170,24 +178,25 @@ class _UserShopPageState extends State<UserShopPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 2))],
                   ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
-                    decoration: const InputDecoration(
-                      icon: Icon(Icons.search, color: Color(0xFF8B7A7B)),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                    decoration: InputDecoration(
+                      icon: Icon(Icons.search, color: isDark ? Colors.grey[600] : const Color(0xFF8B7A7B)),
                       hintText: 'Search products...',
-                      hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                      hintStyle: TextStyle(color: isDark ? Colors.grey[700] : const Color(0xFF9CA3AF)),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
                 
-                // REQUIREMENT 3: Filter container managed by Admin
+                // Filter Row
                 SizedBox(
                   height: 45,
                   child: Row(
@@ -198,13 +207,13 @@ class _UserShopPageState extends State<UserShopPage> {
                         child: const Row(
                           children: [
                             Icon(Icons.tune, color: Colors.white, size: 16),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text('Filter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Container(width: 1, height: 24, color: const Color(0xFFE5E7EB)),
+                      Container(width: 1, height: 24, color: isDark ? Colors.grey[800] : const Color(0xFFE5E7EB)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: StreamBuilder<QuerySnapshot>(
@@ -225,7 +234,7 @@ class _UserShopPageState extends State<UserShopPage> {
                                 final isSelected = _selectedFilter == label;
                                 return GestureDetector(
                                   onTap: () => setState(() => _selectedFilter = label),
-                                  child: _buildFilterChip(label, isSelected),
+                                  child: _buildFilterChip(label, isSelected, isDark),
                                 );
                               },
                             );
@@ -237,7 +246,7 @@ class _UserShopPageState extends State<UserShopPage> {
                 ),
                 const SizedBox(height: 24),
                 
-                // REQUIREMENT 4/LOGIC: Fetch live products from Firebase
+                // Products Grid
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance.collection('products').snapshots(),
                   builder: (context, snapshot) {
@@ -245,17 +254,15 @@ class _UserShopPageState extends State<UserShopPage> {
                       return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
                     }
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('No products available')));
+                      return Center(child: Padding(padding: const EdgeInsets.all(40), child: Text('No products available', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey))));
                     }
 
                     var docs = snapshot.data!.docs;
 
-                    // Filter Logic: Category
                     if (_selectedFilter != 'All') {
                       docs = docs.where((doc) => doc['category'] == _selectedFilter).toList();
                     }
 
-                    // Filter Logic: Search
                     if (_searchQuery.isNotEmpty) {
                       docs = docs.where((doc) => 
                         (doc['title'] as String).toLowerCase().contains(_searchQuery.toLowerCase())
@@ -263,7 +270,7 @@ class _UserShopPageState extends State<UserShopPage> {
                     }
 
                     if (docs.isEmpty) {
-                      return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('Matching products not found')));
+                      return Center(child: Padding(padding: const EdgeInsets.all(40), child: Text('Matching products not found', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey))));
                     }
 
                     return GridView.builder(
@@ -283,6 +290,7 @@ class _UserShopPageState extends State<UserShopPage> {
                           product['title'] ?? 'No Name',
                           product['price'] ?? '₹0',
                           product['isAvailable'] ?? true,
+                          isDark: isDark,
                           tag: product['tag'] as String?,
                           tagColorHex: product['tagColorHex'] as String?,
                           imageUrl: product['imageUrl'] ?? '',
@@ -300,11 +308,13 @@ class _UserShopPageState extends State<UserShopPage> {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
+  Widget _buildFilterChip(String label, bool isSelected, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFE5F5E9) : const Color(0xFFF3F4F6),
+        color: isSelected 
+          ? (isDark ? const Color(0xFF094D22).withOpacity(0.3) : const Color(0xFFE5F5E9)) 
+          : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6)),
         borderRadius: BorderRadius.circular(12),
         border: isSelected ? Border.all(color: const Color(0xFF094D22), width: 1.5) : null,
       ),
@@ -314,19 +324,21 @@ class _UserShopPageState extends State<UserShopPage> {
           style: TextStyle(
             fontWeight: FontWeight.bold, 
             fontSize: 13,
-            color: isSelected ? const Color(0xFF094D22) : const Color(0xFF6B7280)
+            color: isSelected 
+              ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+              : (isDark ? Colors.grey[500] : const Color(0xFF6B7280))
           )
         ),
       ),
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> productData, String title, String price, bool isAvailable, {String? tag, String? tagColorHex, required String imageUrl}) {
+  Widget _buildProductCard(Map<String, dynamic> productData, String title, String price, bool isAvailable, {required bool isDark, String? tag, String? tagColorHex, required String imageUrl}) {
     Color? tagColor = tagColorHex != null ? Color(int.parse(tagColorHex.replaceFirst('#', '0xff'))) : Colors.green;
     
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
       ),
@@ -338,14 +350,14 @@ class _UserShopPageState extends State<UserShopPage> {
             child: Stack(
               children: [
                 Container(
-                  decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(color: isDark ? Colors.grey[900] : const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(16)),
                   width: double.infinity,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.image, color: Colors.grey)),
+                      errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.image, color: isDark ? Colors.grey[800] : Colors.grey)),
                     ),
                   ),
                 ),
@@ -363,15 +375,15 @@ class _UserShopPageState extends State<UserShopPage> {
             ),
           ),
           const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E1E1E)), maxLines: 1),
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF1E1E1E)), maxLines: 1),
           const SizedBox(height: 4),
-          Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF094D22))),
+          Text(price, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22))),
           const SizedBox(height: 4),
           Row(
             children: [
               Container(width: 6, height: 6, decoration: BoxDecoration(color: isAvailable ? Colors.green : Colors.red, shape: BoxShape.circle)),
               const SizedBox(width: 4),
-              Text(isAvailable ? 'AVAILABLE' : 'UNAVAILABLE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isAvailable ? const Color(0xFF094D22) : Colors.red)),
+              Text(isAvailable ? 'AVAILABLE' : 'UNAVAILABLE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isAvailable ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) : Colors.red)),
             ],
           ),
           const SizedBox(height: 10),
@@ -381,8 +393,8 @@ class _UserShopPageState extends State<UserShopPage> {
                 onTap: isAvailable ? () => _addToCart(productData) : null,
                 child: Container(
                   width: 36, height: 36,
-                  decoration: BoxDecoration(color: isAvailable ? const Color(0xFF98F598) : const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)),
-                  child: Icon(Icons.shopping_cart, color: isAvailable ? const Color(0xFF094D22) : const Color(0xFF9CA3AF), size: 18),
+                  decoration: BoxDecoration(color: isAvailable ? (isDark ? const Color(0xFF094D22).withOpacity(0.3) : const Color(0xFF98F598)) : (isDark ? Colors.grey[900] : const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.shopping_cart, color: isAvailable ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) : (isDark ? Colors.grey[700] : const Color(0xFF9CA3AF)), size: 18),
                 ),
               ),
               const SizedBox(width: 6),
@@ -391,9 +403,9 @@ class _UserShopPageState extends State<UserShopPage> {
                   onTap: isAvailable ? () => _buyNow(productData) : null,
                   child: Container(
                     height: 36,
-                    decoration: BoxDecoration(color: isAvailable ? const Color(0xFF094D22) : const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: isAvailable ? const Color(0xFF094D22) : (isDark ? Colors.grey[900] : const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(10)),
                     alignment: Alignment.center,
-                    child: Text(isAvailable ? 'Buy Now' : 'Notify', style: TextStyle(color: isAvailable ? Colors.white : const Color(0xFF9CA3AF), fontWeight: FontWeight.bold, fontSize: 12)),
+                    child: Text(isAvailable ? 'Buy Now' : 'Notify', style: TextStyle(color: isAvailable ? Colors.white : (isDark ? Colors.grey[700] : const Color(0xFF9CA3AF)), fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
               ),
