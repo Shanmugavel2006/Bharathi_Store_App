@@ -4,7 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'user_order_success_page.dart';
 
 class UserCheckoutPage extends StatefulWidget {
-  const UserCheckoutPage({super.key});
+  final Map<String, dynamic>? addressDetails;
+  const UserCheckoutPage({super.key, this.addressDetails});
 
   @override
   State<UserCheckoutPage> createState() => _UserCheckoutPageState();
@@ -27,18 +28,32 @@ class _UserCheckoutPageState extends State<UserCheckoutPage> {
     try {
       // 1. Get user details
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
-      final userData = userDoc.data() as Map<String, dynamic>;
+      final userData = userDoc.data() as Map<String, dynamic>?;
+
+      String finalAddress = '';
+      if (widget.addressDetails != null) {
+        finalAddress = '${widget.addressDetails!['address']}, ${widget.addressDetails!['city']} - ${widget.addressDetails!['pincode']}';
+      } else if (userData != null) {
+        finalAddress = userData['address'] ?? 'No Address Provided';
+      } else {
+        finalAddress = 'No Address Provided';
+      }
+
+      String customerName = widget.addressDetails?['name'] ?? userData?['name'] ?? 'Guest User';
+      String phone = widget.addressDetails?['phone'] ?? userData?['phone'] ?? '';
 
       // 2. Create order document
-      await FirebaseFirestore.instance.collection('orders').add({
+      final orderRef = await FirebaseFirestore.instance.collection('orders').add({
         'userId': user!.uid,
-        'customerName': userData['name'] ?? 'Guest User',
-        'address': userData['address'] ?? 'No Address Provided',
+        'customerName': customerName,
+        'phone': phone,
+        'address': finalAddress,
         'itemsCount': cartItems.length,
         'totalAmount': '₹${total.toStringAsFixed(2)}',
         'status': 'IN PREPARATION',
         'createdAt': FieldValue.serverTimestamp(),
         'paymentMethod': _getPaymentMethodName(),
+        'items': cartItems.map((doc) => doc.data()).toList(),
       });
 
       // 3. Clear cart
@@ -49,7 +64,12 @@ class _UserCheckoutPageState extends State<UserCheckoutPage> {
       await cartBatch.commit();
 
       if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const UserOrderSuccessPage()));
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(
+            builder: (context) => UserOrderSuccessPage(orderId: orderRef.id)
+          )
+        );
       }
     } catch (e) {
       if (mounted) {

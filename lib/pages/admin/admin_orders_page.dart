@@ -17,14 +17,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
     DateTime startOfToday = DateTime(now.year, now.month, now.day);
     DateTime startOfLastMonth = now.subtract(const Duration(days: 30));
 
-    Query query = FirebaseFirestore.instance.collection('orders');
-    if (_showPresentOrders) {
-      query = query.where('createdAt', isGreaterThanOrEqualTo: startOfToday);
-    } else {
-      query = query
-          .where('createdAt', isGreaterThanOrEqualTo: startOfLastMonth)
-          .where('createdAt', isLessThan: startOfToday);
-    }
+    // Fetch all orders and sort/filter in-memory for maximum reliability
+    final stream = FirebaseFirestore.instance.collection('orders').snapshots();
 
     return Padding(
       padding: const EdgeInsets.all(20.0),
@@ -109,12 +103,36 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
           
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: query.orderBy('createdAt', descending: true).snapshots(),
+              stream: stream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                
+                final allDocs = snapshot.hasData ? snapshot.data!.docs : [];
+                
+                // Sort by createdAt descending
+                allDocs.sort((a, b) {
+                  final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                  final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                  if (aTime == null) return 1;
+                  if (bTime == null) return -1;
+                  return bTime.compareTo(aTime);
+                });
+
+                final filteredDocs = allDocs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = (data['status'] ?? '').toString().toUpperCase();
+                  if (_showPresentOrders) {
+                    // Include 'IN PREPARATION', 'CONFIRMED', 'PENDING', or empty status in Present Orders
+                    return status == 'IN PREPARATION' || status == 'CONFIRMED' || status == 'PENDING' || status == '';
+                  } else {
+                    // Include 'DELIVERED', 'COMPLETED', 'CANCELLED' in Past Orders
+                    return status == 'DELIVERED' || status == 'COMPLETED' || status == 'CANCELLED';
+                  }
+                }).toList();
+
+                if (filteredDocs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -122,7 +140,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                         Icon(Icons.shopping_basket_outlined, size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
                         Text(
-                          _showPresentOrders ? 'No orders today' : 'No past orders found',
+                          _showPresentOrders ? 'No active orders' : 'No past orders found',
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                       ],
@@ -131,10 +149,10 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                 }
 
                 return ListView.builder(
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: filteredDocs.length,
                   itemBuilder: (context, index) {
-                    final order = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-                    final docId = snapshot.data!.docs[index].id;
+                    final order = filteredDocs[index].data() as Map<String, dynamic>;
+                    final docId = filteredDocs[index].id;
                     return _buildOrderCard(docId, order);
                   },
                 );
@@ -212,29 +230,61 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
           const SizedBox(height: 20),
           Row(
             children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: status == 'COMPLETED' ? null : () {
-                    FirebaseFirestore.instance.collection('orders').doc(docId).update({'status': 'COMPLETED'});
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF094D22),
-                    disabledBackgroundColor: Colors.grey[300],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+              if (status == 'IN PREPARATION')
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      FirebaseFirestore.instance.collection('orders').doc(docId).update({'status': 'CONFIRMED'});
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Confirm Order',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  child: Text(
-                    status == 'COMPLETED' ? 'Completed' : 'Complete Packing',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                )
+              else if (status == 'CONFIRMED')
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      FirebaseFirestore.instance.collection('orders').doc(docId).update({'status': 'DELIVERED'});
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF094D22),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Mark as Delivered',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: null,
+                    style: ElevatedButton.styleFrom(
+                      disabledBackgroundColor: Colors.grey[300],
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Delivered',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: 12),
               TextButton(
-                onPressed: () {
-                  // Show Details logic here
-                },
+                onPressed: () => _showOrderDetailsDialog(context, docId, order),
                 child: const Text(
                   'Details',
                   style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold),
@@ -247,10 +297,112 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
     );
   }
 
+  void _showOrderDetailsDialog(BuildContext context, String orderId, Map<String, dynamic> order) {
+    final items = (order['items'] as List? ?? []);
+    final customerName = order['customerName'] ?? 'Guest';
+    final phone = order['phone'] ?? 'No phone';
+    final address = order['address'] ?? 'No address';
+    final total = order['totalAmount'] ?? '₹0';
+    final status = order['status'] ?? 'PENDING';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Order Details', style: TextStyle(fontWeight: FontWeight.bold)),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+              ],
+            ),
+            Text('ID: #$orderId', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Customer Section
+                const Text('CUSTOMER INFO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                const SizedBox(height: 8),
+                Text(customerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('Phone: $phone', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                Text('Address: $address', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                
+                const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider()),
+                
+                // Items Section
+                const Text('ORDERED ITEMS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                const SizedBox(height: 12),
+                ...items.map((item) {
+                  final data = item as Map<String, dynamic>;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 45, height: 45,
+                          decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(data['imageUrl'] ?? '', fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.shopping_bag)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(data['title'] ?? 'Product', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text('Quantity: ${data['quantity']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        Text(data['price'] ?? '₹0', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                
+                const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider()),
+                
+                // Total
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(total, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF094D22))),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Status Badge
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(color: _getStatusColor(status).withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                    child: Text(status, style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
       case 'IN PREPARATION': return const Color(0xFF094D22);
-      case 'SHIPPED': return Colors.blue;
+      case 'CONFIRMED': return Colors.blue;
+      case 'DELIVERED': return const Color(0xFF094D22);
       case 'COMPLETED': return Colors.grey;
       case 'CANCELLED': return Colors.red;
       default: return const Color(0xFF094D22);

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import 'user_checkout_page.dart';
+import 'user_address_page.dart';
 
 class UserCartPage extends StatefulWidget {
   const UserCartPage({super.key});
@@ -212,7 +213,7 @@ class _UserCartPageState extends State<UserCartPage> {
                             height: 54,
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const UserCheckoutPage()));
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => UserAddressPage()));
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF094D22),

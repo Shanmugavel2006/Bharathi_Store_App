@@ -4,7 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import '../login_page.dart';
-import 'user_checkout_page.dart';
+import 'user_address_page.dart';
+import 'user_cart_page.dart';
 
 class UserShopPage extends StatefulWidget {
   const UserShopPage({super.key});
@@ -84,7 +85,7 @@ class _UserShopPageState extends State<UserShopPage> {
     if (mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const UserCheckoutPage()),
+        MaterialPageRoute(builder: (context) => const UserAddressPage()),
       );
     }
   }
@@ -129,7 +130,7 @@ class _UserShopPageState extends State<UserShopPage> {
             IconButton(
               icon: Icon(Icons.shopping_bag_outlined, color: isDark ? Colors.white : const Color(0xFF094D22)), 
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const UserCheckoutPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const UserCartPage()));
               }
             ),
             IconButton(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'admin_add_product_page.dart';
 
 class AdminManageItemsPage extends StatefulWidget {
   const AdminManageItemsPage({super.key});
@@ -28,6 +29,78 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating status: $e')));
       }
     }
+  }
+
+  Future<void> _deleteProduct(String docId) async {
+    try {
+      bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete Product'),
+          content: const Text('Are you sure you want to remove this product?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true), 
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        await FirebaseFirestore.instance.collection('products').doc(docId).delete();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product removed successfully')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting product: $e')));
+      }
+    }
+  }
+
+  void _showEditDialog(String docId, Map<String, dynamic> product) {
+    final titleController = TextEditingController(text: product['title']);
+    final priceController = TextEditingController(text: product['price'].toString().replaceAll('₹', ''));
+    final categoryController = TextEditingController(text: product['category']);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Product'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Product Name')),
+              TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Price', prefixText: '₹')),
+              TextField(controller: categoryController, decoration: const InputDecoration(labelText: 'Category')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('products').doc(docId).update({
+                'title': titleController.text.trim(),
+                'price': '₹${priceController.text.trim()}',
+                'category': categoryController.text.trim(),
+              });
+              if (mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product updated')));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF094D22)),
+            child: const Text('Update', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -92,12 +165,8 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
                         final docId = docs[index].id;
                         return _buildItemCard(
                           docId: docId,
-                          category: (product['category'] ?? 'General').toString().toUpperCase(),
-                          sku: product['sku'] ?? '#SKU-${1000 + index}',
-                          title: product['title'] ?? 'No Name',
-                          price: product['price'] ?? '₹0',
-                          isAvailable: product['isAvailable'] ?? true,
-                          imageUrl: product['imageUrl'] ?? '',
+                          product: product,
+                          index: index,
                         );
                       },
                     );
@@ -113,7 +182,9 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
           right: 20,
           child: FloatingActionButton(
             backgroundColor: const Color(0xFF094D22),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminAddProductPage()));
+            },
             child: const Icon(Icons.add, color: Colors.white, size: 28),
           ),
         ),
@@ -123,13 +194,16 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
 
   Widget _buildItemCard({
     required String docId,
-    required String category,
-    required String sku,
-    required String title,
-    required String price,
-    required bool isAvailable,
-    required String imageUrl,
+    required Map<String, dynamic> product,
+    required int index,
   }) {
+    final category = (product['category'] ?? 'General').toString().toUpperCase();
+    final sku = product['sku'] ?? '#SKU-${1000 + index}';
+    final title = product['title'] ?? 'No Name';
+    final price = product['price'] ?? '₹0';
+    final isAvailable = product['isAvailable'] ?? true;
+    final imageUrl = product['imageUrl'] ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
@@ -174,7 +248,21 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
                       decoration: BoxDecoration(color: isAvailable ? const Color(0xFF558B2F) : const Color(0xFF869287), borderRadius: BorderRadius.circular(12)),
                       child: Text(category, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                     ),
-                    Text(sku, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _showEditDialog(docId, product),
+                          child: const Icon(Icons.edit, size: 16, color: Color(0xFF094D22)),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _deleteProduct(docId),
+                          child: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(sku, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
+                      ],
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
