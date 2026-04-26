@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_add_product_page.dart';
 
 class AdminManageItemsPage extends StatefulWidget {
-  const AdminManageItemsPage({super.key});
+  final bool isStandalone;
+  const AdminManageItemsPage({super.key, this.isStandalone = false});
 
   @override
   State<AdminManageItemsPage> createState() => _AdminManageItemsPageState();
@@ -105,7 +106,7 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    Widget content = Stack(
       children: [
         Padding(
           padding: const EdgeInsets.all(20.0),
@@ -190,6 +191,22 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
         ),
       ],
     );
+
+    if (widget.isStandalone) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('Manage Items', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
+        ),
+        body: content,
+      );
+    }
+    return content;
   }
 
   Widget _buildItemCard({

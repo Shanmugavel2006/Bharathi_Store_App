@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminOrdersPage extends StatefulWidget {
-  const AdminOrdersPage({super.key});
+  final bool isStandalone;
+  const AdminOrdersPage({super.key, this.isStandalone = false});
 
   @override
   State<AdminOrdersPage> createState() => _AdminOrdersPageState();
@@ -20,7 +21,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
     // Fetch all orders and sort/filter in-memory for maximum reliability
     final stream = FirebaseFirestore.instance.collection('orders').snapshots();
 
-    return Padding(
+    Widget content = Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,6 +163,22 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
         ],
       ),
     );
+
+    if (widget.isStandalone) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('Store Orders', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
+        ),
+        body: content,
+      );
+    }
+    return content;
   }
 
   Widget _buildOrderCard(String docId, Map<String, dynamic> order) {

@@ -3,6 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import 'dart:async';
+import 'admin_manage_items_page.dart';
+import 'admin_users_page.dart';
+import 'admin_orders_page.dart';
+import 'admin_delivery_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -57,7 +61,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   Icons.inventory_2_outlined, 
                   const Color(0xFFE3F2FD), 
                   const Color(0xFF1976D2),
-                  isDark: isDark
+                  isDark: isDark,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminManageItemsPage(isStandalone: true))),
                 ),
                 _buildStatCard(
                   'Registered Users', 
@@ -65,7 +70,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   Icons.people_outline, 
                   const Color(0xFFF1F8E9), 
                   const Color(0xFF388E3C),
-                  isDark: isDark
+                  isDark: isDark,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsersPage(isStandalone: true))),
                 ),
                 _buildStatCard(
                   'Delivery Register', 
@@ -73,7 +79,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   Icons.local_shipping_outlined, 
                   const Color(0xFFFFF3E0), 
                   const Color(0xFFF57C00),
-                  isDark: isDark
+                  isDark: isDark,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDeliveryPage(isStandalone: true))),
                 ),
                 _buildStatCard(
                   'Pending Orders', 
@@ -82,7 +89,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   const Color(0xFFFCE4EC), 
                   const Color(0xFFC2185B),
                   query: (ref) => ref.where('status', isEqualTo: 'pending'),
-                  isDark: isDark
+                  isDark: isDark,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersPage(isStandalone: true))),
                 ),
                 _buildStatCard(
                   'Completed Orders', 
@@ -91,7 +99,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   const Color(0xFFE8F5E9), 
                   const Color(0xFF2E7D32),
                   query: (ref) => ref.where('status', isEqualTo: 'completed'),
-                  isDark: isDark
+                  isDark: isDark,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersPage(isStandalone: true))),
                 ),
               ],
             ),
@@ -166,16 +175,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Stream<List<Map<String, dynamic>>> _getCombinedActivityStream() {
+    final tenDaysAgo = Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 10)));
+    
     final usersStream = FirebaseFirestore.instance
         .collection('users')
+        .where('createdAt', isGreaterThanOrEqualTo: tenDaysAgo)
         .orderBy('createdAt', descending: true)
-        .limit(5)
+        .limit(10)
         .snapshots();
         
     final ordersStream = FirebaseFirestore.instance
         .collection('orders')
+        .where('createdAt', isGreaterThanOrEqualTo: tenDaysAgo)
         .orderBy('createdAt', descending: true)
-        .limit(5)
+        .limit(10)
         .snapshots();
 
     return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<Map<String, dynamic>>>(
@@ -222,7 +235,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return '${difference.inDays} days ago';
   }
 
-  Widget _buildStatCard(String label, String collection, IconData icon, Color bgColor, Color iconColor, {Query Function(CollectionReference)? query, required bool isDark}) {
+  Widget _buildStatCard(String label, String collection, IconData icon, Color bgColor, Color iconColor, {Query Function(CollectionReference)? query, required bool isDark, VoidCallback? onTap}) {
     Query baseQuery = FirebaseFirestore.instance.collection(collection);
     if (query != null) {
       baseQuery = query(FirebaseFirestore.instance.collection(collection));
@@ -238,50 +251,53 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           count = '0';
         }
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark ? iconColor.withOpacity(0.1) : bgColor,
-                  borderRadius: BorderRadius.circular(12),
+        return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? iconColor.withOpacity(0.1) : bgColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
                 ),
-                child: Icon(icon, color: iconColor, size: 24),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    count,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF1E1E1E),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF1E1E1E),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       }

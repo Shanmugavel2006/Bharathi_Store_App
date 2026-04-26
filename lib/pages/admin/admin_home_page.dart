@@ -10,6 +10,8 @@ import 'admin_users_page.dart';
 import 'admin_dashboard_page.dart';
 import 'admin_analysis_page.dart';
 import 'admin_settings_page.dart';
+import 'admin_history_page.dart';
+import '../login_page.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -29,6 +31,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     const AdminAddProductPage(),
     const AdminAnalysisPage(),
     const AdminSettingsPage(),
+    const AdminHistoryPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -48,11 +51,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : const Color(0xFF094D22)),
-          onPressed: () async {
-            await FirebaseAuth.instance.signOut();
-          },
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: Icon(Icons.menu, color: isDark ? Colors.white : const Color(0xFF094D22)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
         title: Text(
           'Bharathi Store Admin',
@@ -63,11 +66,17 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ),
         ),
         actions: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: Icon(Icons.menu, color: isDark ? Colors.white : const Color(0xFF094D22)),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
+          IconButton(
+            icon: Icon(Icons.logout, color: isDark ? Colors.white : const Color(0xFF094D22)),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
           ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -105,6 +114,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
             _buildDrawerItem(3, Icons.inventory_2_outlined, 'Manage Items', isDark),
             _buildDrawerItem(4, Icons.add_box_outlined, 'Add Product', isDark),
             _buildDrawerItem(5, Icons.analytics_outlined, 'Analysis', isDark),
+            _buildDrawerItem(7, Icons.history_outlined, 'History', isDark),
             _buildDrawerItem(2, Icons.people_outline, 'Users', isDark),
             const Spacer(),
             _buildDrawerItem(6, Icons.settings_outlined, 'Settings', isDark),

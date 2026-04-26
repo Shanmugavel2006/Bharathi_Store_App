@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminUsersPage extends StatefulWidget {
-  const AdminUsersPage({super.key});
+  final bool isStandalone;
+  const AdminUsersPage({super.key, this.isStandalone = false});
 
   @override
   State<AdminUsersPage> createState() => _AdminUsersPageState();
@@ -69,7 +70,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    Widget content = Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,5 +231,21 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         ],
       ),
     );
+
+    if (widget.isStandalone) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('Registered Users', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
+        ),
+        body: content,
+      );
+    }
+    return content;
   }
 }
