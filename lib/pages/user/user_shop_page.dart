@@ -32,9 +32,15 @@ class _UserShopPageState extends State<UserShopPage> {
     super.dispose();
   }
 
-  Future<void> _addToCart(Map<String, dynamic> product) async {
+  Future<void> _addToCart(Map<String, dynamic> product, {Map<String, dynamic>? variant}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    final itemTitle = variant != null 
+      ? "${product['title']} (${variant['title']}${variant['unitValue'] != null && variant['unitValue'].toString().isNotEmpty ? ' - ${variant['unitValue']}${variant['unitType']}' : ''})" 
+      : "${product['title']}${product['unitValue'] != null && product['unitValue'].toString().isNotEmpty ? ' (${product['unitValue']}${product['unitType']})' : ''}";
+    final itemPrice = variant != null ? "₹ ${variant['price']}" : product['price'];
+    final itemImage = (variant != null && variant['imageUrl'] != null && variant['imageUrl'].isNotEmpty) ? variant['imageUrl'] : product['imageUrl'];
 
     try {
       final cartRef = FirebaseFirestore.instance
@@ -43,7 +49,7 @@ class _UserShopPageState extends State<UserShopPage> {
           .collection('cart');
 
       // Check if item already exists
-      final existing = await cartRef.where('title', isEqualTo: product['title']).get();
+      final existing = await cartRef.where('title', isEqualTo: itemTitle).get();
       
       if (existing.docs.isNotEmpty) {
         // Increment quantity
@@ -53,9 +59,9 @@ class _UserShopPageState extends State<UserShopPage> {
       } else {
         // Add new item
         await cartRef.add({
-          'title': product['title'],
-          'price': product['price'],
-          'imageUrl': product['imageUrl'],
+          'title': itemTitle,
+          'price': itemPrice,
+          'imageUrl': itemImage,
           'quantity': 1,
           'tag': product['tag'],
           'createdAt': FieldValue.serverTimestamp(),
@@ -65,7 +71,7 @@ class _UserShopPageState extends State<UserShopPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${product['title']} added to cart'),
+            content: Text('$itemTitle added to cart'),
             backgroundColor: const Color(0xFF094D22),
             duration: const Duration(seconds: 1),
           ),
@@ -80,14 +86,160 @@ class _UserShopPageState extends State<UserShopPage> {
     }
   }
 
-  void _buyNow(Map<String, dynamic> product) async {
-    await _addToCart(product);
+  void _buyNow(Map<String, dynamic> product, {Map<String, dynamic>? variant}) async {
+    await _addToCart(product, variant: variant);
     if (mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const UserAddressPage()),
       );
     }
+  }
+
+  void _handleProductTap(Map<String, dynamic> product, {bool isBuyNow = false}) {
+    if (product['hasVariants'] == true && product['variants'] != null) {
+      _showVariantSelection(product);
+    } else {
+      if (isBuyNow) {
+        _buyNow(product);
+      } else {
+        _addToCart(product);
+      }
+    }
+  }
+
+  void _showVariantSelection(Map<String, dynamic> product) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final List variants = product['variants'] as List;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Select Option for ${product['title']}',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF094D22)),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: variants.length,
+                itemBuilder: (context, index) {
+                  final variant = variants[index] as Map<String, dynamic>;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[900] : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            if (variant['imageUrl'] != null && variant['imageUrl'].toString().isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(variant['imageUrl'], width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image)),
+                              )
+                            else
+                              Container(
+                                width: 60, height: 60,
+                                decoration: BoxDecoration(color: isDark ? Colors.grey[800] : Colors.grey[200], borderRadius: BorderRadius.circular(12)),
+                                child: const Icon(Icons.image, color: Colors.grey),
+                              ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(variant['title'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text('₹ ${variant['price']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                                      if (variant['unitValue'] != null && variant['unitValue'].toString().isNotEmpty)
+                                         Text(' / ${variant['unitValue']}${variant['unitType']}', style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600])),
+                                     ],
+                                   ),
+                                   const SizedBox(height: 4),
+                                   Row(
+                                     children: [
+                                       Container(width: 6, height: 6, decoration: BoxDecoration(color: variant['isAvailable'] == false ? Colors.red : Colors.green, shape: BoxShape.circle)),
+                                       const SizedBox(width: 4),
+                                       Text(
+                                         variant['isAvailable'] == false ? 'UNAVAILABLE' : 'AVAILABLE',
+                                         style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: variant['isAvailable'] == false ? Colors.red : (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22))),
+                                       ),
+                                     ],
+                                   ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: variant['isAvailable'] == false ? null : () {
+                                  Navigator.pop(context);
+                                  _addToCart(product, variant: variant);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: variant['isAvailable'] == false ? Colors.grey : const Color(0xFF094D22)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text('Add Cart', style: TextStyle(color: variant['isAvailable'] == false ? Colors.grey : const Color(0xFF094D22))),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: variant['isAvailable'] == false ? null : () {
+                                  Navigator.pop(context);
+                                  _buyNow(product, variant: variant);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: variant['isAvailable'] == false ? Colors.grey[300] : const Color(0xFF094D22),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text(variant['isAvailable'] == false ? 'Unavailable' : 'Buy Now', style: TextStyle(color: variant['isAvailable'] == false ? Colors.grey[600] : Colors.white)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -350,15 +502,18 @@ class _UserShopPageState extends State<UserShopPage> {
           Expanded(
             child: Stack(
               children: [
-                Container(
-                  decoration: BoxDecoration(color: isDark ? Colors.grey[900] : const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(16)),
-                  width: double.infinity,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.image, color: isDark ? Colors.grey[800] : Colors.grey)),
+                GestureDetector(
+                  onTap: () => _handleProductTap(productData),
+                  child: Container(
+                    decoration: BoxDecoration(color: isDark ? Colors.grey[900] : const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(16)),
+                    width: double.infinity,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.image, color: isDark ? Colors.grey[800] : Colors.grey)),
+                      ),
                     ),
                   ),
                 ),
@@ -378,7 +533,13 @@ class _UserShopPageState extends State<UserShopPage> {
           const SizedBox(height: 10),
           Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF1E1E1E)), maxLines: 1),
           const SizedBox(height: 4),
-          Text(price, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22))),
+          Row(
+            children: [
+              Text(price, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22))),
+              if (productData['unitValue'] != null && productData['unitValue'].toString().isNotEmpty)
+                Text(' / ${productData['unitValue']}${productData['unitType']}', style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[500] : Colors.grey[600], fontWeight: FontWeight.w500)),
+            ],
+          ),
           const SizedBox(height: 4),
           Row(
             children: [
@@ -391,7 +552,7 @@ class _UserShopPageState extends State<UserShopPage> {
           Row(
             children: [
               GestureDetector(
-                onTap: isAvailable ? () => _addToCart(productData) : null,
+                onTap: isAvailable ? () => _handleProductTap(productData) : null,
                 child: Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(color: isAvailable ? (isDark ? const Color(0xFF094D22).withOpacity(0.3) : const Color(0xFF98F598)) : (isDark ? Colors.grey[900] : const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(10)),
@@ -401,7 +562,7 @@ class _UserShopPageState extends State<UserShopPage> {
               const SizedBox(width: 6),
               Expanded(
                 child: GestureDetector(
-                  onTap: isAvailable ? () => _buyNow(productData) : null,
+                  onTap: isAvailable ? () => _handleProductTap(productData, isBuyNow: true) : null,
                   child: Container(
                     height: 36,
                     decoration: BoxDecoration(color: isAvailable ? const Color(0xFF094D22) : (isDark ? Colors.grey[900] : const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(10)),

@@ -15,10 +15,13 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
   final _categoryController = TextEditingController();
   final _imageUrlController = TextEditingController();
   final _tagController = TextEditingController();
+  final _unitValueController = TextEditingController();
+  String _selectedUnit = 'g';
   
   bool _isAvailable = true;
   Color _tagColor = const Color(0xFF1B5E20);
   bool _isLoading = false;
+  List<Map<String, dynamic>> _variants = [];
 
   @override
   void dispose() {
@@ -27,6 +30,7 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
     _categoryController.dispose();
     _imageUrlController.dispose();
     _tagController.dispose();
+    _unitValueController.dispose();
     super.dispose();
   }
 
@@ -44,6 +48,10 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
         'isAvailable': _isAvailable,
         'tag': _tagController.text.trim().isEmpty ? null : _tagController.text.trim(),
         'tagColorHex': '#${_tagColor.value.toRadixString(16).padLeft(8, '0')}',
+        'unitValue': _unitValueController.text.trim(),
+        'unitType': _selectedUnit,
+        'variants': _variants,
+        'hasVariants': _variants.isNotEmpty,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -61,6 +69,11 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
         _categoryController.clear();
         _imageUrlController.clear();
         _tagController.clear();
+        _unitValueController.clear();
+        setState(() {
+          _variants = [];
+          _selectedUnit = 'g';
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -145,6 +158,47 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
               _buildTextField('Image URL', 'https://images.unsplash.com/...', _imageUrlController),
               
               const Text(
+                'UNIT / WEIGHT (OPTIONAL)',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Color(0xFF4B5563)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _unitValueController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. 500, 1',
+                        filled: true,
+                        fillColor: const Color(0xFFEEEEEE),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: const Color(0xFFEEEEEE), borderRadius: BorderRadius.circular(4)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedUnit,
+                          isExpanded: true,
+                          items: ['g', 'kg', 'ml', 'l'].map((String value) {
+                            return DropdownMenuItem<String>(value: value, child: Text(value));
+                          }).toList(),
+                          onChanged: (val) => setState(() => _selectedUnit = val!),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              const Text(
                 'TAG (OPTIONAL)',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Color(0xFF4B5563)),
               ),
@@ -171,6 +225,73 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 40),
+              
+              const SizedBox(height: 20),
+              
+              const Text(
+                'PRODUCT VARIANTS (OPTIONAL)',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Color(0xFF4B5563)),
+              ),
+              const SizedBox(height: 12),
+              
+              if (_variants.isNotEmpty)
+                Column(
+                  children: _variants.asMap().entries.map((entry) {
+                    int idx = entry.key;
+                    var v = entry.value;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          if (v['imageUrl'] != null && v['imageUrl'].isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(v['imageUrl'], width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image)),
+                            ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(v['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                Text('₹ ${v['price']} ${v['unitValue'] ?? ''} ${v['unitType'] ?? ''}', style: const TextStyle(fontSize: 12, color: Color(0xFF094D22))),
+                                Text(
+                                  v['isAvailable'] == false ? 'UNAVAILABLE' : 'AVAILABLE',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: v['isAvailable'] == false ? Colors.red : Colors.green),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                            onPressed: () => setState(() => _variants.removeAt(idx)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _showAddVariantDialog,
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Add Multiple Options / Variants'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF094D22),
+                    side: const BorderSide(color: Color(0xFF094D22)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 40),
               
               SizedBox(
@@ -201,6 +322,102 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAddVariantDialog() {
+    final vTitleController = TextEditingController();
+    final vPriceController = TextEditingController();
+    final vImageUrlController = TextEditingController();
+    final vUnitValueController = TextEditingController();
+    String vSelectedUnit = 'g';
+    bool vIsAvailable = true;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Product Variant'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: vTitleController, decoration: const InputDecoration(labelText: 'Variant Name (e.g. Red, 500g)')),
+              TextField(controller: vPriceController, decoration: const InputDecoration(labelText: 'Price'), keyboardType: TextInputType.number),
+              TextField(controller: vImageUrlController, decoration: const InputDecoration(labelText: 'Image URL')),
+              const SizedBox(height: 16),
+              const Text('Unit / Weight (Optional)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 8),
+              StatefulBuilder(
+                builder: (context, setDialogState) => Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: vUnitValueController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(hintText: 'e.g. 500, 1', border: OutlineInputBorder()),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(4)),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: vSelectedUnit,
+                            isExpanded: true,
+                            items: ['g', 'kg', 'ml', 'l'].map((String value) {
+                              return DropdownMenuItem<String>(value: value, child: Text(value));
+                            }).toList(),
+                            onChanged: (val) => setDialogState(() => vSelectedUnit = val!),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              StatefulBuilder(
+                builder: (context, setDialogState) => Row(
+                  children: [
+                    const Text('Available in Stock:', style: TextStyle(fontSize: 14)),
+                    const Spacer(),
+                    Switch(
+                      value: vIsAvailable,
+                      onChanged: (val) => setDialogState(() => vIsAvailable = val),
+                      activeColor: const Color(0xFF094D22),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (vTitleController.text.isNotEmpty && vPriceController.text.isNotEmpty) {
+                setState(() {
+                  _variants.add({
+                    'title': vTitleController.text.trim(),
+                    'price': vPriceController.text.trim(),
+                    'imageUrl': vImageUrlController.text.trim(),
+                    'unitValue': vUnitValueController.text.trim(),
+                    'unitType': vSelectedUnit,
+                    'isAvailable': vIsAvailable,
+                  });
+                });
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF094D22)),
+            child: const Text('Add Option', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

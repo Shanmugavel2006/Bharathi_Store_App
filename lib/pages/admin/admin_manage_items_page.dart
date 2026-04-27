@@ -104,6 +104,37 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
     );
   }
 
+  void _showVariantsStatusDialog(Map<String, dynamic> product) {
+    final List variants = product['variants'] ?? [];
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Variants for ${product['title']}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: variants.length,
+            itemBuilder: (context, index) {
+              final v = variants[index];
+              final isVAvailable = v['isAvailable'] != false;
+              return ListTile(
+                title: Text(v['title']),
+                subtitle: Text('₹ ${v['price']}'),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: isVAvailable ? Colors.green : Colors.red, borderRadius: BorderRadius.circular(8)),
+                  child: Text(isVAvailable ? 'AVAILABLE' : 'OUT OF STOCK', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget content = Stack(
@@ -288,7 +319,20 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                        if (product['hasVariants'] == true)
+                          GestureDetector(
+                            onTap: () => _showVariantsStatusDialog(product),
+                            child: const Padding(
+                              padding: EdgeInsets.only(top: 4.0),
+                              child: Text('View Variants Status', style: TextStyle(fontSize: 10, color: Colors.blue, decoration: TextDecoration.underline)),
+                            ),
+                          ),
+                      ],
+                    ),
                     Row(
                       children: [
                         Transform.scale(

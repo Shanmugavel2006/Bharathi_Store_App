@@ -118,6 +118,19 @@ class _AdminHomePageState extends State<AdminHomePage> {
             _buildDrawerItem(2, Icons.people_outline, 'Users', isDark),
             const Spacer(),
             _buildDrawerItem(6, Icons.settings_outlined, 'Settings', isDark),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text('Logout', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              onTap: () async {
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                }
+              },
+            ),
             const SizedBox(height: 20),
           ],
         ),
