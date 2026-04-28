@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../providers/theme_provider.dart';
 import '../login_page.dart';
 import 'user_address_page.dart';
@@ -18,6 +19,97 @@ class _UserShopPageState extends State<UserShopPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
   String _searchQuery = '';
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+
+  void _startListening() async {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    bool available = await _speech.initialize(
+      onStatus: (status) {
+        if (status == 'notListening' || status == 'done') {
+          if (mounted) setState(() => _isListening = false);
+        }
+      },
+      onError: (error) {
+        if (mounted) setState(() => _isListening = false);
+      },
+    );
+
+    if (available) {
+      setState(() => _isListening = true);
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isDismissible: true,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  ),
+                  const SizedBox(height: 24),
+                  Icon(Icons.mic, size: 48, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Listening...',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E1E1E)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Say the product name you want to search',
+                    style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[500] : const Color(0xFF6B7280)),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: 60, height: 60,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          },
+        ),
+      ).whenComplete(() {
+        _speech.stop();
+        setState(() => _isListening = false);
+      });
+
+      _speech.listen(
+        onResult: (result) {
+          if (result.finalResult) {
+            setState(() {
+              _searchQuery = result.recognizedWords;
+              _searchController.text = result.recognizedWords;
+              _isListening = false;
+            });
+            if (Navigator.canPop(context)) Navigator.pop(context);
+          }
+        },
+        listenFor: const Duration(seconds: 10),
+        pauseFor: const Duration(seconds: 3),
+      );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Speech recognition not available on this device')),
+        );
+      }
+    }
+  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -344,6 +436,15 @@ class _UserShopPageState extends State<UserShopPage> {
                       hintText: 'Search products...',
                       hintStyle: TextStyle(color: isDark ? Colors.grey[700] : const Color(0xFF9CA3AF)),
                       border: InputBorder.none,
+                      suffixIcon: GestureDetector(
+                        onTap: _startListening,
+                        child: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: _isListening
+                            ? Colors.red
+                            : (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -374,9 +475,12 @@ class _UserShopPageState extends State<UserShopPage> {
                           builder: (context, snapshot) {
                             List<String> filters = ['All'];
                             if (snapshot.hasData) {
-                              for (var doc in snapshot.data!.docs) {
-                                filters.add(doc['name']);
-                              }
+                              List<String> dynamicFilters = snapshot.data!.docs
+                                  .map((doc) => doc['name'] as String)
+                                  .toList();
+                              // Sort alphabetically
+                              dynamicFilters.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                              filters.addAll(dynamicFilters);
                             }
                             return ListView.separated(
                               scrollDirection: Axis.horizontal,
@@ -410,7 +514,10 @@ class _UserShopPageState extends State<UserShopPage> {
                       return Center(child: Padding(padding: const EdgeInsets.all(40), child: Text('No products available', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey))));
                     }
 
-                    var docs = snapshot.data!.docs;
+                    var docs = snapshot.data!.docs.toList();
+
+                    // Sort alphabetically by title
+                    docs.sort((a, b) => (a['title'] as String? ?? '').toLowerCase().compareTo((b['title'] as String? ?? '').toLowerCase()));
 
                     if (_selectedFilter != 'All') {
                       docs = docs.where((doc) => doc['category'] == _selectedFilter).toList();
@@ -418,7 +525,7 @@ class _UserShopPageState extends State<UserShopPage> {
 
                     if (_searchQuery.isNotEmpty) {
                       docs = docs.where((doc) => 
-                        (doc['title'] as String).toLowerCase().contains(_searchQuery.toLowerCase())
+                        (doc['title'] as String? ?? '').toLowerCase().contains(_searchQuery.toLowerCase())
                       ).toList();
                     }
 
@@ -487,7 +594,7 @@ class _UserShopPageState extends State<UserShopPage> {
   }
 
   Widget _buildProductCard(Map<String, dynamic> productData, String title, String price, bool isAvailable, {required bool isDark, String? tag, String? tagColorHex, required String imageUrl}) {
-    Color? tagColor = tagColorHex != null ? Color(int.parse(tagColorHex.replaceFirst('#', '0xff'))) : Colors.green;
+    Color? tagColor = tagColorHex != null ? Color(int.parse(tagColorHex.replaceFirst('#', ''), radix: 16)) : Colors.green;
     
     return Container(
       decoration: BoxDecoration(

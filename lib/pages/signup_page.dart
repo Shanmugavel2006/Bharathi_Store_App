@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../providers/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -119,17 +121,17 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {bool isPassword = false, TextInputType? keyboardType}) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller, bool isDark, {bool isPassword = false, TextInputType? keyboardType}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.0,
-            color: Color(0xFF6B7280),
+            color: isDark ? Colors.grey[400] : const Color(0xFF6B7280),
           ),
         ),
         const SizedBox(height: 8),
@@ -137,7 +139,7 @@ class _SignupPageState extends State<SignupPage> {
           controller: controller,
           obscureText: isPassword,
           keyboardType: keyboardType,
-          style: const TextStyle(fontSize: 15),
+          style: TextStyle(fontSize: 15, color: isDark ? Colors.white : Colors.black),
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'This field is required';
@@ -149,9 +151,9 @@ class _SignupPageState extends State<SignupPage> {
           },
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFFC0C5CF), fontSize: 15),
+            hintStyle: TextStyle(color: isDark ? Colors.grey[700] : const Color(0xFFC0C5CF), fontSize: 15),
             filled: true,
-            fillColor: const Color(0xFFF3F4F6),
+            fillColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
@@ -166,19 +168,22 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+          icon: Icon(Icons.arrow_back, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Bharathi',
           style: TextStyle(
-            color: Color(0xFF094D22),
+            color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22),
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -190,11 +195,11 @@ class _SignupPageState extends State<SignupPage> {
           padding: const EdgeInsets.all(20.0),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -206,12 +211,12 @@ class _SignupPageState extends State<SignupPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Create Account',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF094D22),
+                      color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -225,12 +230,12 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   const SizedBox(height: 32),
                   
-                  _buildTextField('Name', 'Enter your full name', _nameController),
-                  _buildTextField('Email ID', 'example@gmail.com', _emailController, keyboardType: TextInputType.emailAddress),
-                  _buildTextField('Mobile Number', '+91 00000 00000', _mobileController, keyboardType: TextInputType.phone),
-                  _buildTextField('Address', 'Street, Apartment, City', _addressController),
-                  _buildTextField('Password', '........', _passwordController, isPassword: true),
-                  _buildTextField('Confirm Password', '........', _confirmPasswordController, isPassword: true),
+                  _buildTextField('Name', 'Enter your full name', _nameController, isDark),
+                  _buildTextField('Email ID', 'example@gmail.com', _emailController, isDark, keyboardType: TextInputType.emailAddress),
+                  _buildTextField('Mobile Number', '+91 00000 00000', _mobileController, isDark, keyboardType: TextInputType.phone),
+                  _buildTextField('Address', 'Street, Apartment, City', _addressController, isDark),
+                  _buildTextField('Password', '........', _passwordController, isDark, isPassword: true),
+                  _buildTextField('Confirm Password', '........', _confirmPasswordController, isDark, isPassword: true),
                   
                   const SizedBox(height: 8),
                   
@@ -274,16 +279,16 @@ class _SignupPageState extends State<SignupPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Already have an account? ',
-                        style: TextStyle(color: Color(0xFF4B5563), fontSize: 14),
+                        style: TextStyle(color: isDark ? Colors.grey[500] : const Color(0xFF4B5563), fontSize: 14),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: const Text(
+                        child: Text(
                           'Log in',
                           style: TextStyle(
-                            color: Color(0xFF094D22),
+                            color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22),
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),

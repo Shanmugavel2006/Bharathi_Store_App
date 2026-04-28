@@ -24,7 +24,7 @@ class _AdminHistoryPageState extends State<AdminHistoryPage> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : const Color(0xFF094D22)),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.maybePop(context),
         ),
         title: Text(
           'Complete History',

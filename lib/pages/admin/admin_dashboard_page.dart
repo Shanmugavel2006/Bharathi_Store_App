@@ -88,8 +88,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   Icons.pending_actions_outlined, 
                   const Color(0xFFFCE4EC), 
                   const Color(0xFFC2185B),
-                  query: (ref) => ref.where('status', isEqualTo: 'pending'),
                   isDark: isDark,
+                  statusFilter: ['PENDING', 'IN PREPARATION', 'CONFIRMED'],
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersPage(isStandalone: true))),
                 ),
                 _buildStatCard(
@@ -98,8 +98,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   Icons.check_circle_outline, 
                   const Color(0xFFE8F5E9), 
                   const Color(0xFF2E7D32),
-                  query: (ref) => ref.where('status', isEqualTo: 'completed'),
                   isDark: isDark,
+                  statusFilter: ['DELIVERED', 'COMPLETED', 'CANCELLED'],
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersPage(isStandalone: true))),
                 ),
               ],
@@ -235,7 +235,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return '${difference.inDays} days ago';
   }
 
-  Widget _buildStatCard(String label, String collection, IconData icon, Color bgColor, Color iconColor, {Query Function(CollectionReference)? query, required bool isDark, VoidCallback? onTap}) {
+  Widget _buildStatCard(String label, String collection, IconData icon, Color bgColor, Color iconColor, {Query Function(CollectionReference)? query, List<String>? statusFilter, required bool isDark, VoidCallback? onTap}) {
     Query baseQuery = FirebaseFirestore.instance.collection(collection);
     if (query != null) {
       baseQuery = query(FirebaseFirestore.instance.collection(collection));
@@ -246,7 +246,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       builder: (context, snapshot) {
         String count = '...';
         if (snapshot.hasData) {
-          count = snapshot.data!.docs.length.toString();
+          if (statusFilter != null) {
+            // Count in-memory for multiple statuses
+            final filteredDocs = snapshot.data!.docs.where((doc) {
+              final status = (doc.data() as Map<String, dynamic>)['status']?.toString().toUpperCase() ?? '';
+              return statusFilter.contains(status);
+            }).toList();
+            count = filteredDocs.length.toString();
+          } else {
+            count = snapshot.data!.docs.length.toString();
+          }
         } else if (snapshot.hasError) {
           count = '0';
         }

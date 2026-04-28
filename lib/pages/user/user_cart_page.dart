@@ -44,10 +44,10 @@ class _UserCartPageState extends State<UserCartPage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
-          leading: IconButton(
+          leading: Navigator.canPop(context) ? IconButton(
             icon: Icon(Icons.arrow_back, color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)),
-            onPressed: () => Navigator.pop(context),
-          ),
+            onPressed: () => Navigator.maybePop(context),
+          ) : null,
           title: Text(
             'Bharathi Store',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF094D22), fontWeight: FontWeight.bold, fontSize: 18),

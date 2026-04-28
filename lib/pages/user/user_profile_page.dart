@@ -41,10 +41,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(
+          leading: Navigator.canPop(context) ? IconButton(
             icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : const Color(0xFF094D22)),
             onPressed: () => Navigator.of(context).maybePop(),
-          ),
+          ) : null,
           title: Text(
             'Profile', 
             style: TextStyle(
@@ -168,66 +168,110 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Order Status Tracking
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('orders')
                           .where('userId', isEqualTo: user?.uid)
-                          .orderBy('createdAt', descending: true)
-                          .limit(1)
                           .snapshots(),
                       builder: (context, snapshot) {
-                        final orderDoc = (snapshot.hasData && snapshot.data!.docs.isNotEmpty) ? snapshot.data!.docs.first : null;
-                        final orderData = orderDoc?.data() as Map<String, dynamic>?;
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox();
+                        
+                        // Sort in memory to avoid index issues
+                        final docs = snapshot.data!.docs.toList();
+                        docs.sort((a, b) {
+                          final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                          final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                          return (bTime ?? Timestamp.now()).compareTo(aTime ?? Timestamp.now());
+                        });
+
+                        final orderDoc = docs.first;
+                        final orderData = orderDoc.data() as Map<String, dynamic>?;
                         final status = (orderData?['status'] ?? '').toString().toUpperCase();
                         
+                        // Show if order is active (not finished/cancelled)
+                        bool isActive = status == 'PENDING' || status == 'IN PREPARATION' || status == 'CONFIRMED';
+                        if (!isActive) return const SizedBox();
+
                         bool isOrdered = status != 'CANCELLED' && status != '';
                         bool isDelivered = status == 'DELIVERED' || status == 'COMPLETED';
 
-                        return _buildSection(
-                          'Order Status',
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.grey[900] : Colors.white, 
-                              borderRadius: BorderRadius.circular(16)
-                            ),
-                            child: Column(
-                              children: [
-                                _buildStatusRow('Ordered', isOrdered, isDark),
-                                const SizedBox(height: 16),
-                                Container(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
-                                const SizedBox(height: 16),
-                                _buildStatusRow('Delivered', isDelivered, isDark),
-                              ],
-                            ),
-                          ),
-                          isDark: isDark,
-                          trailing: orderDoc != null 
-                            ? Text(
+                        return Column(
+                          children: [
+                            _buildSection(
+                              'Order Status',
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.grey[900] : Colors.white, 
+                                  borderRadius: BorderRadius.circular(16)
+                                ),
+                                child: Column(
+                                  children: [
+                                    _buildStatusRow('Ordered', isOrdered, isDark),
+                                    const SizedBox(height: 16),
+                                    Container(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                                    const SizedBox(height: 16),
+                                    _buildStatusRow('Delivered', isDelivered, isDark),
+                                  ],
+                                ),
+                              ),
+                              isDark: isDark,
+                              trailing: Text(
                                 '#${orderDoc.id.substring(0, 8)}', 
                                 style: TextStyle(fontSize: 10, color: isDark ? Colors.grey[500] : Colors.grey[400])
-                              )
-                            : null,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         );
                       }
                     ),
-                    const SizedBox(height: 24),
 
-                    // Present Orders
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('orders')
                           .where('userId', isEqualTo: user?.uid)
-                          .orderBy('createdAt', descending: true)
-                          .limit(1)
                           .snapshots(),
                       builder: (context, snapshot) {
-                        final orderDoc = (snapshot.hasData && snapshot.data!.docs.isNotEmpty) ? snapshot.data!.docs.first : null;
-                        final orderData = orderDoc?.data() as Map<String, dynamic>?;
-                        final status = (orderData?['status'] ?? '').toString().toUpperCase();
-                        final total = orderData?['totalAmount'] ?? '₹0';
-                        final createdAt = (orderData?['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+                        final allDocs = (snapshot.hasData) ? snapshot.data!.docs.toList() : <QueryDocumentSnapshot>[];
+                        
+                        // Sort in memory
+                        allDocs.sort((a, b) {
+                          final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                          final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                          return (bTime ?? Timestamp.now()).compareTo(aTime ?? Timestamp.now());
+                        });
+
+                        final activeOrders = allDocs.where((doc) {
+                          final status = (doc['status'] ?? '').toString().toUpperCase();
+                          return status == 'PENDING' || status == 'IN PREPARATION' || status == 'CONFIRMED';
+                        }).toList();
+
+                        if (activeOrders.isEmpty) {
+                           return _buildSection(
+                            'Present Orders',
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.grey[900] : Colors.white, 
+                                borderRadius: BorderRadius.circular(16)
+                              ),
+                              child: Center(child: Text('No active orders', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey))),
+                            ),
+                            isDark: isDark,
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(12)),
+                              child: const Text('0 ACTIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6B7280))),
+                            ),
+                          );
+                        }
+
+                        final orderDoc = activeOrders.first;
+                        final orderData = orderDoc.data() as Map<String, dynamic>;
+                        final status = (orderData['status'] ?? '').toString().toUpperCase();
+                        final total = orderData['totalAmount'] ?? '₹0';
+                        final createdAt = (orderData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
                         final date = DateFormat('dd MMM, hh:mm a').format(createdAt);
                         
                         return _buildSection(
@@ -242,58 +286,56 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                 color: isDark ? Colors.grey[900] : Colors.white, 
                                 borderRadius: BorderRadius.circular(16)
                               ),
-                              child: orderDoc == null 
-                                ? Center(child: Text('No active orders', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey)))
-                                : Column(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              'Order #${orderDoc.id.substring(0, 8)}', 
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold, 
-                                                fontSize: 13,
-                                                color: isDark ? Colors.white : Colors.black
-                                              )
-                                            )
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Text(
-                                            total, 
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold, 
-                                              fontSize: 14, 
-                                              color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)
-                                            )
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        date, 
-                                        style: TextStyle(
-                                          fontSize: 11, 
-                                          color: isDark ? Colors.grey[500] : const Color(0xFF6B7280)
+                                      Expanded(
+                                        child: Text(
+                                          'Order #${orderDoc.id.substring(0, 8)}', 
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold, 
+                                            fontSize: 13,
+                                            color: isDark ? Colors.white : Colors.black
+                                          )
                                         )
                                       ),
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        children: [
-                                          Expanded(child: Container(height: 6, decoration: BoxDecoration(color: _getStatusColor(status), borderRadius: BorderRadius.circular(3)))),
-                                          Expanded(child: Container(height: 6, decoration: BoxDecoration(color: isDark ? Colors.grey[800] : const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(3)))),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(width: 16),
                                       Text(
-                                        status.toUpperCase(),
-                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _getStatusColor(status)),
+                                        total, 
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold, 
+                                          fontSize: 14, 
+                                          color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)
+                                        )
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    date, 
+                                    style: TextStyle(
+                                      fontSize: 11, 
+                                      color: isDark ? Colors.grey[500] : const Color(0xFF6B7280)
+                                    )
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(child: Container(height: 6, decoration: BoxDecoration(color: _getStatusColor(status), borderRadius: BorderRadius.circular(3)))),
+                                      Expanded(child: Container(height: 6, decoration: BoxDecoration(color: isDark ? Colors.grey[800] : const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(3)))),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _getStatusColor(status)),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           isDark: isDark,
@@ -303,7 +345,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(color: const Color(0xFF86EFAC), borderRadius: BorderRadius.circular(12)),
                               child: Text(
-                                orderDoc != null ? 'VIEW ALL' : '0 ACTIVE', 
+                                '${activeOrders.length} ACTIVE', 
                                 style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF094D22))
                               ),
                             ),
@@ -313,17 +355,22 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Past History
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('orders')
                           .where('userId', isEqualTo: user?.uid)
-                          .orderBy('createdAt', descending: true)
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) return const SizedBox();
                         
-                        final allOrders = snapshot.data!.docs;
+                        final allOrders = snapshot.data!.docs.toList();
+                        // Sort in memory
+                        allOrders.sort((a, b) {
+                          final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                          final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                          return (bTime ?? Timestamp.now()).compareTo(aTime ?? Timestamp.now());
+                        });
+
                         final pastOrders = allOrders.where((doc) {
                           final status = doc['status'].toString().toUpperCase();
                           return status == 'DELIVERED' || status == 'COMPLETED';

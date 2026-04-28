@@ -171,12 +171,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       onTap: () => _onItemTapped(index),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: isSelected
-            ? BoxDecoration(
-                color: isDark ? const Color(0xFF2E7D32).withOpacity(0.2) : const Color(0xFFE5F5E9),
-                borderRadius: BorderRadius.circular(12),
-              )
-            : null,
+        decoration: null, // Background removed per user request
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

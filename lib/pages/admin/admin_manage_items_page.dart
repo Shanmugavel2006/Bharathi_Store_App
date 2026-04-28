@@ -104,28 +104,217 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
     );
   }
 
-  void _showVariantsStatusDialog(Map<String, dynamic> product) {
-    final List variants = product['variants'] ?? [];
+  void _showVariantsStatusDialog(String docId, Map<String, dynamic> product) {
+    List variants = List.from(product['variants'] ?? []);
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text('Variants for ${product['title']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: variants.length,
+                itemBuilder: (context, index) {
+                  final v = variants[index];
+                  final isVAvailable = v['isAvailable'] != false;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(v['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                  Text('₹ ${v['price']}', style: const TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+                              onPressed: () => _showEditVariantDialog(docId, product, index),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                              onPressed: () async {
+                                bool? confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete Variant'),
+                                    content: Text('Remove "${v['title']}"?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  List updatedVariants = List.from(variants);
+                                  updatedVariants.removeAt(index);
+                                  await FirebaseFirestore.instance.collection('products').doc(docId).update({
+                                    'variants': updatedVariants,
+                                    'hasVariants': updatedVariants.isNotEmpty,
+                                  });
+                                  if (mounted) Navigator.pop(context);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isVAvailable ? 'AVAILABLE' : 'UNAVAILABLE',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isVAvailable ? Colors.green : Colors.red),
+                            ),
+                            Transform.scale(
+                              scale: 0.8,
+                              child: Switch(
+                                value: isVAvailable,
+                                onChanged: (val) async {
+                                  setModalState(() {
+                                    variants[index]['isAvailable'] = val;
+                                  });
+                                  await FirebaseFirestore.instance.collection('products').doc(docId).update({
+                                    'variants': variants,
+                                  });
+                                },
+                                activeColor: const Color(0xFF094D22),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditVariantDialog(String docId, Map<String, dynamic> product, int variantIndex) {
+    List variants = List.from(product['variants'] ?? []);
+    Map<String, dynamic> variant = Map<String, dynamic>.from(variants[variantIndex]);
+    
+    final titleController = TextEditingController(text: variant['title']);
+    final priceController = TextEditingController(text: variant['price'].toString());
+    final unitValueController = TextEditingController(text: variant['unitValue']?.toString() ?? '');
+    String selectedUnit = variant['unitType'] ?? 'g';
+    final imageUrlController = TextEditingController(text: variant['imageUrl'] ?? '');
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Variants for ${product['title']}'),
+        title: const Text('Edit Variant'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Variant Title')),
+              TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Price'), keyboardType: TextInputType.number),
+              TextField(controller: unitValueController, decoration: const InputDecoration(labelText: 'Unit Value'), keyboardType: TextInputType.number),
+              DropdownButton<String>(
+                value: selectedUnit,
+                isExpanded: true,
+                items: ['g', 'kg', 'ml', 'l'].map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                onChanged: (val) => selectedUnit = val!,
+              ),
+              TextField(controller: imageUrlController, decoration: const InputDecoration(labelText: 'Image URL')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              variant['title'] = titleController.text.trim();
+              variant['price'] = priceController.text.trim();
+              variant['unitValue'] = unitValueController.text.trim();
+              variant['unitType'] = selectedUnit;
+              variant['imageUrl'] = imageUrlController.text.trim();
+              
+              variants[variantIndex] = variant;
+              await FirebaseFirestore.instance.collection('products').doc(docId).update({
+                'variants': variants,
+              });
+              if (mounted) {
+                Navigator.pop(context); // Close edit dialog
+                Navigator.pop(context); // Close status dialog to refresh
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Variant updated')));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF094D22)),
+            child: const Text('Save Changes', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFiltersDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Manage Categories'),
         content: SizedBox(
           width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: variants.length,
-            itemBuilder: (context, index) {
-              final v = variants[index];
-              final isVAvailable = v['isAvailable'] != false;
-              return ListTile(
-                title: Text(v['title']),
-                subtitle: Text('₹ ${v['price']}'),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: isVAvailable ? Colors.green : Colors.red, borderRadius: BorderRadius.circular(8)),
-                  child: Text(isVAvailable ? 'AVAILABLE' : 'OUT OF STOCK', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                ),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('filters').snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs;
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final filter = docs[index];
+                  return ListTile(
+                    title: Text(filter['name']),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () async {
+                        bool? confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Category'),
+                            content: Text('Remove "${filter['name']}"?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await FirebaseFirestore.instance.collection('filters').doc(filter.id).delete();
+                        }
+                      },
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -140,7 +329,7 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
     Widget content = Stack(
       children: [
         Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -156,18 +345,30 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
               const SizedBox(height: 24),
               
               // Search Bar
-              TextField(
-                controller: _searchController,
-                onChanged: (val) => setState(() => _searchQuery = val),
-                decoration: InputDecoration(
-                  hintText: 'Search products, categories...',
-                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280), size: 20),
-                  filled: true,
-                  fillColor: const Color(0xFFEBEBEB),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (val) => setState(() => _searchQuery = val),
+                      decoration: InputDecoration(
+                        hintText: 'Search products, categories...',
+                        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                        prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280), size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFEBEBEB),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _showFiltersDialog,
+                    icon: const Icon(Icons.category, color: Color(0xFF094D22)),
+                    tooltip: 'Manage Categories',
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               
@@ -182,11 +383,15 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
                       return const Center(child: Text('No products found'));
                     }
 
-                    var docs = snapshot.data!.docs;
+                    var docs = snapshot.data!.docs.toList();
+                    
+                    // Sort alphabetically by title
+                    docs.sort((a, b) => (a['title'] as String? ?? '').toLowerCase().compareTo((b['title'] as String? ?? '').toLowerCase()));
+
                     if (_searchQuery.isNotEmpty) {
                       docs = docs.where((doc) => 
-                        (doc['title'] as String).toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                        (doc['category'] as String).toLowerCase().contains(_searchQuery.toLowerCase())
+                        (doc['title'] as String? ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                        (doc['category'] as String? ?? '').toLowerCase().contains(_searchQuery.toLowerCase())
                       ).toList();
                     }
 
@@ -205,19 +410,7 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 60), 
             ],
-          ),
-        ),
-        Positioned(
-          bottom: 20,
-          right: 20,
-          child: FloatingActionButton(
-            backgroundColor: const Color(0xFF094D22),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminAddProductPage()));
-            },
-            child: const Icon(Icons.add, color: Colors.white, size: 28),
           ),
         ),
       ],
@@ -319,19 +512,21 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
-                        if (product['hasVariants'] == true)
-                          GestureDetector(
-                            onTap: () => _showVariantsStatusDialog(product),
-                            child: const Padding(
-                              padding: EdgeInsets.only(top: 4.0),
-                              child: Text('View Variants Status', style: TextStyle(fontSize: 10, color: Colors.blue, decoration: TextDecoration.underline)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF094D22))),
+                          if (product['hasVariants'] == true)
+                            GestureDetector(
+                              onTap: () => _showVariantsStatusDialog(docId, product),
+                              child: const Padding(
+                                padding: EdgeInsets.only(top: 4.0),
+                                child: Text('View Variants Status', style: TextStyle(fontSize: 10, color: Colors.blue, decoration: TextDecoration.underline)),
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                     Row(
                       children: [

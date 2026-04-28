@@ -110,9 +110,80 @@ class AdminDeliveryPage extends StatelessWidget {
           ),
         ),
         body: content,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showAddPartnerDialog(context, isDark),
+          backgroundColor: const Color(0xFFF57C00),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       );
     }
 
-    return content;
+    return Stack(
+      children: [
+        content,
+        Positioned(
+          bottom: 20,
+          right: 20,
+          child: FloatingActionButton(
+            onPressed: () => _showAddPartnerDialog(context, isDark),
+            backgroundColor: const Color(0xFFF57C00),
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddPartnerDialog(BuildContext context, bool isDark) {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text('Add Delivery Partner', style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: InputDecoration(
+                labelText: 'Partner Name',
+                labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneController,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+              ),
+              keyboardType: TextInputType.phone,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('delivery_partners').add({
+                  'name': nameController.text.trim(),
+                  'phone': phoneController.text.trim(),
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF57C00)),
+            child: const Text('Add Partner', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }
