@@ -61,6 +61,26 @@ class _SignupPageState extends State<SignupPage> {
         throw Exception("Please enter a valid email address");
       }
 
+      // Check for duplicate mobile number in Firestore
+      final mobileQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('mobile', isEqualTo: cleanMobile)
+          .get();
+      
+      if (mobileQuery.docs.isNotEmpty) {
+        throw Exception("This mobile number is already registered.");
+      }
+
+      // Check for duplicate email in Firestore
+      final emailQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .get();
+      
+      if (emailQuery.docs.isNotEmpty) {
+        throw Exception("This email address is already registered.");
+      }
+
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
@@ -86,13 +106,18 @@ class _SignupPageState extends State<SignupPage> {
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
-      // DEBUG: Improved error message display to identify the exact cause
       String message = e.message ?? "An error occurred during sign up";
       
       if (e.code == 'weak-password') {
         message = 'The password provided is too weak.';
       } else if (e.code == 'email-already-in-use') {
-        message = 'This mobile number is already registered.';
+        // Special case: Auth account exists but Firestore doc is missing (Deleted Account)
+        final doc = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: _emailController.text.trim()).get();
+        if (doc.docs.isEmpty) {
+          message = 'This account was previously deleted. Please contact support to reactivate or use a different email.';
+        } else {
+          message = 'This email address is already registered.';
+        }
       } else if (e.code == 'operation-not-allowed') {
         message = 'Email/Password sign-in is not enabled in Firebase Console.';
       }

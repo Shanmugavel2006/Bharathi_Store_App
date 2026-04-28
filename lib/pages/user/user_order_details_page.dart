@@ -92,25 +92,52 @@ class _UserOrderDetailsPageState extends State<UserOrderDetailsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status Card
+                   // Status Card
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(status).withOpacity(0.1),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: _getStatusColor(status).withOpacity(0.3)),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                      ],
                     ),
                     child: Column(
                       children: [
-                        Text(
-                          status.toUpperCase(),
-                          style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 1.2),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  status.toUpperCase(),
+                                  style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: 0.5),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Order Placed on $formattedDate',
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(color: _getStatusColor(status).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                              child: Text('#${widget.orderId.substring(0, 8)}', style: TextStyle(color: _getStatusColor(status), fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Order Placed on $formattedDate',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            _buildStatusStep('Ordered', true),
+                            _buildStatusLine(status == 'CONFIRMED' || status == 'DELIVERED' || status == 'COMPLETED'),
+                            _buildStatusStep('Confirmed', status == 'CONFIRMED' || status == 'DELIVERED' || status == 'COMPLETED'),
+                            _buildStatusLine(status == 'DELIVERED' || status == 'COMPLETED'),
+                            _buildStatusStep('Delivered', status == 'DELIVERED' || status == 'COMPLETED'),
+                          ],
                         ),
                       ],
                     ),
@@ -240,8 +267,37 @@ class _UserOrderDetailsPageState extends State<UserOrderDetailsPage> {
       case 'IN PREPARATION': return const Color(0xFF094D22);
       case 'CONFIRMED': return Colors.blue;
       case 'COMPLETED': return Colors.grey;
+      case 'DELIVERED': return const Color(0xFF094D22);
       case 'CANCELLED': return Colors.red;
       default: return const Color(0xFF094D22);
     }
+  }
+
+  Widget _buildStatusStep(String label, bool isTicked) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 24, height: 24,
+            decoration: BoxDecoration(
+              color: isTicked ? const Color(0xFF094D22) : Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: isTicked ? const Color(0xFF094D22) : Colors.grey[300]!, width: 2),
+            ),
+            child: isTicked ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: isTicked ? FontWeight.bold : FontWeight.normal, color: isTicked ? const Color(0xFF094D22) : Colors.grey[500])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusLine(bool isFinished) {
+    return Container(
+      width: 40, height: 2,
+      margin: const EdgeInsets.only(bottom: 20),
+      color: isFinished ? const Color(0xFF094D22) : Colors.grey[200],
+    );
   }
 }

@@ -10,6 +10,40 @@ class AdminUsersPage extends StatefulWidget {
 }
 
 class _AdminUsersPageState extends State<AdminUsersPage> {
+  Future<void> _toggleUserStatus(String userId, String userName, bool currentStatus) async {
+    String action = currentStatus ? 'Deactivate' : 'Reactivate';
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$action User'),
+        content: Text('Are you sure you want to $action "$userName"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: TextButton.styleFrom(foregroundColor: currentStatus ? Colors.red : const Color(0xFF094D22)),
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'isActive': !currentStatus,
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('User "$userName" ${currentStatus ? 'deactivated' : 'reactivated'}')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
+  }
+
   void _showUserDetails(Map<String, dynamic> user) {
     showDialog(
       context: context,
@@ -127,12 +161,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   itemCount: users.length,
                   itemBuilder: (context, index) {
                     final userData = users[index].data() as Map<String, dynamic>;
+                    final bool isActive = userData['isActive'] ?? true;
                     return Card(
                       elevation: 0,
                       color: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey.shade200),
+                        side: BorderSide(color: isActive ? Colors.grey.shade200 : Colors.red.shade100),
                       ),
                       margin: const EdgeInsets.only(bottom: 16),
                       child: Padding(
@@ -143,13 +178,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                             Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: const Color(0xFFE5F5E9),
+                                  backgroundColor: isActive ? const Color(0xFFE5F5E9) : Colors.red.shade50,
                                   child: Text(
                                     (userData['name'] as String?)?.isNotEmpty == true 
                                         ? userData['name'][0].toUpperCase() 
                                         : 'U',
-                                    style: const TextStyle(
-                                      color: Color(0xFF094D22),
+                                    style: TextStyle(
+                                      color: isActive ? const Color(0xFF094D22) : Colors.red,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -159,13 +194,25 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        userData['name'] ?? 'Unknown User',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Color(0xFF1E1E1E),
-                                        ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            userData['name'] ?? 'Unknown User',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: isActive ? const Color(0xFF1E1E1E) : Colors.red,
+                                            ),
+                                          ),
+                                          if (!isActive) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(4)),
+                                              child: const Text('DEACTIVATED', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.red)),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -184,7 +231,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF9FAFB),
+                                color: isActive ? const Color(0xFFF9FAFB) : Colors.red.shade50.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -205,19 +252,39 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: () => _showUserDetails(userData),
-                                icon: const Icon(Icons.info_outline, size: 18, color: Color(0xFF094D22)),
-                                label: const Text(
-                                  'Show More',
-                                  style: TextStyle(
-                                    color: Color(0xFF094D22),
-                                    fontWeight: FontWeight.bold,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: () => _toggleUserStatus(users[index].id, userData['name'] ?? 'Unknown User', isActive),
+                                  icon: Icon(
+                                    isActive ? Icons.block : Icons.check_circle_outline, 
+                                    color: isActive ? Colors.red : const Color(0xFF094D22), 
+                                    size: 18
+                                  ),
+                                  label: Text(
+                                    isActive ? 'Deactivate' : 'Reactivate',
+                                    style: TextStyle(
+                                      color: isActive ? Colors.red : const Color(0xFF094D22),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                TextButton.icon(
+                                  onPressed: () => _showUserDetails(userData),
+                                  icon: const Icon(Icons.info_outline, size: 18, color: Color(0xFF094D22)),
+                                  label: const Text(
+                                    'Details',
+                                    style: TextStyle(
+                                      color: Color(0xFF094D22),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

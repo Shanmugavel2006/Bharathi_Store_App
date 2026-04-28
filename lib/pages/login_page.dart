@@ -8,7 +8,8 @@ import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final bool showAccountDeletedPopup;
+  const LoginPage({super.key, this.showAccountDeletedPopup = false});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -18,6 +19,32 @@ class _LoginPageState extends State<LoginPage> {
   final _emailMobileController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showAccountDeletedPopup) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showDeletedAccountDialog();
+      });
+    }
+  }
+
+  void _showDeletedAccountDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Account Deleted'),
+        content: const Text('Your account has been deleted by the administrator. Please sign up again to continue using the store.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -69,10 +96,33 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
       
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // Check if user document exists in Firestore and is active
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        await FirebaseAuth.instance.signOut();
+        if (mounted) {
+          _showDeletedAccountDialog();
+        }
+        return;
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      if (userData['isActive'] == false) {
+        await FirebaseAuth.instance.signOut();
+        if (mounted) {
+          _showDeletedAccountDialog();
+        }
+        return;
+      }
 
       if (mounted) {
         // Go to home page

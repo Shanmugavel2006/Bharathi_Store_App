@@ -189,10 +189,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         final status = (orderData?['status'] ?? '').toString().toUpperCase();
                         
                         // Show if order is active (not finished/cancelled)
-                        bool isActive = status == 'PENDING' || status == 'IN PREPARATION' || status == 'CONFIRMED';
+                        bool isActive = status == 'PENDING' || status == 'IN PREPARATION' || status == 'CONFIRMED' || status == 'DELIVERED';
                         if (!isActive) return const SizedBox();
 
                         bool isOrdered = status != 'CANCELLED' && status != '';
+                        bool isConfirmed = status == 'CONFIRMED' || status == 'DELIVERED' || status == 'COMPLETED';
                         bool isDelivered = status == 'DELIVERED' || status == 'COMPLETED';
 
                         return Column(
@@ -208,6 +209,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                 child: Column(
                                   children: [
                                     _buildStatusRow('Ordered', isOrdered, isDark),
+                                    const SizedBox(height: 16),
+                                    Container(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                                    const SizedBox(height: 16),
+                                    _buildStatusRow('Order Confirmed', isConfirmed, isDark),
                                     const SizedBox(height: 16),
                                     Container(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
                                     const SizedBox(height: 16),
@@ -325,8 +330,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                   const SizedBox(height: 16),
                                   Row(
                                     children: [
-                                      Expanded(child: Container(height: 6, decoration: BoxDecoration(color: _getStatusColor(status), borderRadius: BorderRadius.circular(3)))),
-                                      Expanded(child: Container(height: 6, decoration: BoxDecoration(color: isDark ? Colors.grey[800] : const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(3)))),
+                                      Expanded(child: Container(height: 6, decoration: BoxDecoration(color: const Color(0xFF094D22), borderRadius: BorderRadius.circular(3)))),
+                                      const SizedBox(width: 4),
+                                      Expanded(child: Container(height: 6, decoration: BoxDecoration(color: (status == 'CONFIRMED' || status == 'DELIVERED' || status == 'COMPLETED') ? const Color(0xFF094D22) : (isDark ? Colors.grey[800] : const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(3)))),
+                                      const SizedBox(width: 4),
+                                      Expanded(child: Container(height: 6, decoration: BoxDecoration(color: (status == 'DELIVERED' || status == 'COMPLETED') ? const Color(0xFF094D22) : (isDark ? Colors.grey[800] : const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(3)))),
                                     ],
                                   ),
                                   const SizedBox(height: 8),

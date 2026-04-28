@@ -79,32 +79,44 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Show Splash Screen while waiting for Auth State
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
         }
 
-        // If user is logged in
         if (snapshot.hasData && snapshot.data != null) {
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance.collection('users').doc(snapshot.data!.uid).get(),
             builder: (context, userSnapshot) {
-              // Show Splash Screen while fetching user profile/role
               if (userSnapshot.connectionState == ConnectionState.waiting) {
                 return const SplashScreen();
               }
               
               if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                final role = userSnapshot.data!.get('role') ?? 'user';
+                final data = userSnapshot.data!.data() as Map<String, dynamic>;
+                final bool isActive = data['isActive'] ?? true;
+                
+                if (!isActive) {
+                  // Account deactivated by admin
+                  FirebaseAuth.instance.signOut();
+                  return const LoginPage(showAccountDeletedPopup: true);
+                }
+
+                final role = data['role'] ?? 'user';
                 if (role == 'admin') {
                   return const AdminHomePage();
                 }
+                return const UserHomePage();
+              } else if (userSnapshot.hasData && !userSnapshot.data!.exists) {
+                // Account deleted by admin from Firestore but still logged into Auth
+                FirebaseAuth.instance.signOut();
+                return const LoginPage(showAccountDeletedPopup: true);
               }
-              return const UserHomePage();
+              
+              // Handle error or unexpected state
+              return const LoginPage();
             },
           );
         }
-        // If not logged in
         return const LoginPage();
       },
     );
