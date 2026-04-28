@@ -7,6 +7,7 @@ import 'admin_manage_items_page.dart';
 import 'admin_users_page.dart';
 import 'admin_orders_page.dart';
 import 'admin_delivery_page.dart';
+import 'admin_payments_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -101,6 +102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   isDark: isDark,
                   statusFilter: ['DELIVERED', 'COMPLETED', 'CANCELLED'],
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersPage(isStandalone: true))),
+                ),
+                _buildStatCard(
+                  'Payments', 
+                  'orders', 
+                  Icons.payments_outlined, 
+                  const Color(0xFFF3E5F5), 
+                  const Color(0xFF7B1FA2),
+                  isDark: isDark,
+                  onTap: () {
+                    // This is slightly tricky because AdminHomePage manages the index.
+                    // But we can push it as a standalone page if we want, or use a callback.
+                    // For now, let's push it as a standalone page similar to others.
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                      appBar: AppBar(
+                        title: const Text('Payments', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        leading: IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Color(0xFF094D22)),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                      body: const AdminPaymentsPage(),
+                    )));
+                  },
                 ),
               ],
             ),

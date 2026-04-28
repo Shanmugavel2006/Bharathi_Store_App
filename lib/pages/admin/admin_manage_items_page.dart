@@ -63,43 +63,11 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
     }
   }
 
-  void _showEditDialog(String docId, Map<String, dynamic> product) {
-    final titleController = TextEditingController(text: product['title']);
-    final priceController = TextEditingController(text: product['price'].toString().replaceAll('₹', ''));
-    final categoryController = TextEditingController(text: product['category']);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Product'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Product Name')),
-              TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Price', prefixText: '₹')),
-              TextField(controller: categoryController, decoration: const InputDecoration(labelText: 'Category')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('products').doc(docId).update({
-                'title': titleController.text.trim(),
-                'price': '₹${priceController.text.trim()}',
-                'category': categoryController.text.trim(),
-              });
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product updated')));
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF094D22)),
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+  void _navigateToEdit(String docId, Map<String, dynamic> product) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminAddProductPage(product: product, productId: docId),
       ),
     );
   }
@@ -428,9 +396,31 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
           title: const Text('Manage Items', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
         ),
         body: content,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminAddProductPage()),
+            );
+          },
+          backgroundColor: const Color(0xFF094D22),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       );
     }
-    return content;
+    return Scaffold(
+      body: content,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminAddProductPage()),
+          );
+        },
+        backgroundColor: const Color(0xFF094D22),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
   }
 
   Widget _buildItemCard({
@@ -492,7 +482,7 @@ class _AdminManageItemsPageState extends State<AdminManageItemsPage> {
                     Row(
                       children: [
                         GestureDetector(
-                          onTap: () => _showEditDialog(docId, product),
+                          onTap: () => _navigateToEdit(docId, product),
                           child: const Icon(Icons.edit, size: 16, color: Color(0xFF094D22)),
                         ),
                         const SizedBox(width: 8),

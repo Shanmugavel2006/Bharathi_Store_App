@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminAddProductPage extends StatefulWidget {
-  const AdminAddProductPage({super.key});
+  final Map<String, dynamic>? product;
+  final String? productId;
+
+  const AdminAddProductPage({super.key, this.product, this.productId});
 
   @override
   State<AdminAddProductPage> createState() => _AdminAddProductPageState();
@@ -24,6 +27,30 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
   List<Map<String, dynamic>> _variants = [];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.product != null) {
+      _nameController.text = widget.product!['title'] ?? '';
+      _priceController.text = (widget.product!['price'] ?? '').toString().replaceAll('₹', '').trim();
+      _categoryController.text = widget.product!['category'] ?? '';
+      _imageUrlController.text = widget.product!['imageUrl'] ?? '';
+      _tagController.text = widget.product!['tag'] ?? '';
+      _unitValueController.text = widget.product!['unitValue']?.toString() ?? '';
+      _selectedUnit = widget.product!['unitType'] ?? 'g';
+      _isAvailable = widget.product!['isAvailable'] ?? true;
+      _variants = List<Map<String, dynamic>>.from(widget.product!['variants'] ?? []);
+      
+      if (widget.product!['tagColorHex'] != null) {
+        try {
+          String hex = widget.product!['tagColorHex'].replaceAll('#', '');
+          if (hex.length == 6) hex = 'FF$hex';
+          _tagColor = Color(int.parse(hex, radix: 16));
+        } catch (_) {}
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
@@ -34,13 +61,13 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
     super.dispose();
   }
 
-  Future<void> _addProduct() async {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseFirestore.instance.collection('products').add({
+      final productData = {
         'title': _nameController.text.trim(),
         'price': '₹ ${_priceController.text.trim()}',
         'category': _categoryController.text.trim(),
@@ -52,8 +79,15 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
         'unitType': _selectedUnit,
         'variants': _variants,
         'hasVariants': _variants.isNotEmpty,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (widget.productId != null) {
+        await FirebaseFirestore.instance.collection('products').doc(widget.productId).update(productData);
+      } else {
+        productData['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance.collection('products').add(productData);
+      }
 
       // Also ensure category exists in filters
       final catName = _categoryController.text.trim();
@@ -63,17 +97,24 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product added successfully!')));
-        _nameController.clear();
-        _priceController.clear();
-        _categoryController.clear();
-        _imageUrlController.clear();
-        _tagController.clear();
-        _unitValueController.clear();
-        setState(() {
-          _variants = [];
-          _selectedUnit = 'g';
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(widget.productId != null ? 'Product updated successfully!' : 'Product added successfully!'))
+        );
+        
+        if (widget.productId != null) {
+          Navigator.pop(context);
+        } else {
+          _nameController.clear();
+          _priceController.clear();
+          _categoryController.clear();
+          _imageUrlController.clear();
+          _tagController.clear();
+          _unitValueController.clear();
+          setState(() {
+            _variants = [];
+            _selectedUnit = 'g';
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -125,7 +166,7 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    final body = SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -133,9 +174,9 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Add New Product',
-                style: TextStyle(
+              Text(
+                widget.productId != null ? 'Edit Product' : 'Add New Product',
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF094D22),
@@ -227,8 +268,6 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
               ),
               const SizedBox(height: 40),
               
-              const SizedBox(height: 20),
-              
               const Text(
                 'PRODUCT VARIANTS (OPTIONAL)',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Color(0xFF4B5563)),
@@ -298,7 +337,7 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _addProduct,
+                  onPressed: _isLoading ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF094D22),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -306,15 +345,15 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
                   ),
                   child: _isLoading 
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Row(
+                    : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Add Product',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        widget.productId != null ? 'Update Product' : 'Add Product',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.add, color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      Icon(widget.productId != null ? Icons.save : Icons.add, color: Colors.white, size: 20),
                     ],
                   ),
                 ),
@@ -324,6 +363,19 @@ class _AdminAddProductPageState extends State<AdminAddProductPage> {
         ),
       ),
     );
+
+    if (widget.productId != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Edit Product'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: const Color(0xFF094D22),
+        ),
+        body: body,
+      );
+    }
+    return body;
   }
 
   void _showAddVariantDialog() {

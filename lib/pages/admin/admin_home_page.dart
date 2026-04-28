@@ -11,6 +11,7 @@ import 'admin_dashboard_page.dart';
 import 'admin_analysis_page.dart';
 import 'admin_settings_page.dart';
 import 'admin_history_page.dart';
+import 'admin_payments_page.dart';
 import '../login_page.dart';
 
 class AdminHomePage extends StatefulWidget {
@@ -32,6 +33,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     const AdminAnalysisPage(),
     const AdminSettingsPage(),
     const AdminHistoryPage(),
+    const AdminPaymentsPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -109,14 +111,22 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ),
               ),
             ),
-            _buildDrawerItem(0, Icons.dashboard_outlined, 'Dashboard', isDark),
-            _buildDrawerItem(1, Icons.receipt_long_outlined, 'Orders', isDark),
-            _buildDrawerItem(3, Icons.inventory_2_outlined, 'Manage Items', isDark),
-            _buildDrawerItem(4, Icons.add_box_outlined, 'Add Product', isDark),
-            _buildDrawerItem(5, Icons.analytics_outlined, 'Analysis', isDark),
-            _buildDrawerItem(7, Icons.history_outlined, 'History', isDark),
-            _buildDrawerItem(2, Icons.people_outline, 'Users', isDark),
-            const Spacer(),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _buildDrawerItem(0, Icons.dashboard_outlined, 'Dashboard', isDark),
+                  _buildDrawerItem(1, Icons.receipt_long_outlined, 'Orders', isDark),
+                  _buildDrawerItem(8, Icons.payments_outlined, 'Payments', isDark),
+                  _buildDrawerItem(3, Icons.inventory_2_outlined, 'Manage Items', isDark),
+                  _buildDrawerItem(4, Icons.add_box_outlined, 'Add Product', isDark),
+                  _buildDrawerItem(5, Icons.analytics_outlined, 'Analysis', isDark),
+                  _buildDrawerItem(7, Icons.history_outlined, 'History', isDark),
+                  _buildDrawerItem(2, Icons.people_outline, 'Users', isDark),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
             _buildDrawerItem(6, Icons.settings_outlined, 'Settings', isDark),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),

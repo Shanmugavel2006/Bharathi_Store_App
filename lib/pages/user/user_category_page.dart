@@ -403,71 +403,72 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
 
             return Row(
               children: [
-                // Left Side Panel
-                Container(
-                  width: 100,
-                  color: isDark ? const Color(0xFF121212) : Colors.white,
-                  child: ListView.builder(
-                    itemCount: categories.length,
-                    itemBuilder: (context, index) {
-                      bool isSelected = _selectedCategory == categories[index];
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = categories[index];
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected 
-                              ? (isDark ? const Color(0xFF094D22).withOpacity(0.3) : const Color(0xFFE5F5E9)) 
-                              : (isDark ? const Color(0xFF121212) : Colors.white),
-                            border: Border(
-                              left: BorderSide(
-                                color: isSelected ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) : Colors.transparent,
-                                width: 4,
+                // Left Side Panel - Hidden during active search
+                if (!_isSearching || _searchQuery.isEmpty)
+                  Container(
+                    width: 100,
+                    color: isDark ? const Color(0xFF121212) : Colors.white,
+                    child: ListView.builder(
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        bool isSelected = _selectedCategory == categories[index];
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedCategory = categories[index];
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected 
+                                ? (isDark ? const Color(0xFF094D22).withOpacity(0.3) : const Color(0xFFE5F5E9)) 
+                                : (isDark ? const Color(0xFF121212) : Colors.white),
+                              border: Border(
+                                left: BorderSide(
+                                  color: isSelected ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) : Colors.transparent,
+                                  width: 4,
+                                ),
                               ),
                             ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSelected 
+                                      ? (isDark ? const Color(0xFF81C784).withOpacity(0.2) : const Color(0xFF98F598).withOpacity(0.3)) 
+                                      : (isDark ? Colors.grey[900] : const Color(0xFFF3F4F6)),
+                                  ),
+                                  child: Icon(
+                                    _getCategoryIcon(categories[index]),
+                                    color: isSelected 
+                                      ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+                                      : (isDark ? Colors.grey[600] : const Color(0xFF8B7A7B)),
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  categories[index],
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    color: isSelected 
+                                      ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
+                                      : (isDark ? Colors.grey[500] : const Color(0xFF6B7280)),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isSelected 
-                                    ? (isDark ? const Color(0xFF81C784).withOpacity(0.2) : const Color(0xFF98F598).withOpacity(0.3)) 
-                                    : (isDark ? Colors.grey[900] : const Color(0xFFF3F4F6)),
-                                ),
-                                child: Icon(
-                                  _getCategoryIcon(categories[index]),
-                                  color: isSelected 
-                                    ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
-                                    : (isDark ? Colors.grey[600] : const Color(0xFF8B7A7B)),
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                categories[index],
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected 
-                                    ? (isDark ? const Color(0xFF81C784) : const Color(0xFF094D22)) 
-                                    : (isDark ? Colors.grey[500] : const Color(0xFF6B7280)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
                 
                 // Right Side Content
                 Expanded(
@@ -478,7 +479,7 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _selectedCategory!,
+                          (_isSearching && _searchQuery.isNotEmpty) ? 'Search Results' : _selectedCategory!,
                           style: TextStyle(
                             fontSize: 16, 
                             fontWeight: FontWeight.bold, 
@@ -488,28 +489,37 @@ class _UserCategoryPageState extends State<UserCategoryPage> {
                         const SizedBox(height: 20),
                         Expanded(
                           child: StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('products')
-                                .where('category', isEqualTo: _selectedCategory)
-                                .snapshots(),
+                            stream: (_isSearching && _searchQuery.isNotEmpty)
+                                ? FirebaseFirestore.instance.collection('products').snapshots()
+                                : FirebaseFirestore.instance
+                                    .collection('products')
+                                    .where('category', isEqualTo: _selectedCategory)
+                                    .snapshots(),
                             builder: (context, productSnapshot) {
                               if (productSnapshot.connectionState == ConnectionState.waiting) {
                                 return const Center(child: CircularProgressIndicator());
                               }
                               if (!productSnapshot.hasData || productSnapshot.data!.docs.isEmpty) {
-                                return Center(child: Text('No products in this category', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey)));
+                                return Center(child: Text((_isSearching && _searchQuery.isNotEmpty) ? 'No products found' : 'No products in this category', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey)));
                               }
 
                               final products = productSnapshot.data!.docs.where((doc) {
-                                if (_searchQuery.isEmpty) return true;
-                                final title = (doc.data() as Map<String, dynamic>)['title'] as String? ?? '';
-                                return title.toLowerCase().contains(_searchQuery.toLowerCase());
+                                if (!_isSearching || _searchQuery.isEmpty) return true;
+                                final data = doc.data() as Map<String, dynamic>;
+                                final title = (data['title'] as String? ?? '').toLowerCase();
+                                final category = (data['category'] as String? ?? '').toLowerCase();
+                                final query = _searchQuery.toLowerCase();
+                                return title.contains(query) || category.contains(query);
                               }).toList();
+
+                              if (products.isEmpty) {
+                                return Center(child: Text('No matches for "$_searchQuery"', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey)));
+                              }
 
                               return GridView.builder(
                                 itemCount: products.length,
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: (_isSearching && _searchQuery.isNotEmpty) ? 3 : 2,
                                   childAspectRatio: 0.65,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 16,
