@@ -1,15 +1,176 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_page.dart';
 import 'admin_sign_in_page.dart';
 import 'user/user_home_page.dart';
+import '../providers/theme_provider.dart';
+import 'package:provider/provider.dart';
 
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+class LoginPage extends StatefulWidget {
+  final bool showAccountDeletedPopup;
+  const LoginPage({super.key, this.showAccountDeletedPopup = false});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _emailMobileController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showAccountDeletedPopup) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showDeletedAccountDialog();
+      });
+    }
+  }
+
+  void _showDeletedAccountDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Account Deleted'),
+        content: const Text('Your account has been deleted by the administrator. Please sign up again to continue using the store.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK', style: TextStyle(color: Color(0xFF094D22), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailMobileController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    final input = _emailMobileController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (input.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email/mobile and password')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String email = "";
+      
+      if (input.contains('@')) {
+        email = input;
+      } else {
+        // Handle mobile number
+        String cleanMobile = input.replaceAll(RegExp(r'[^0-9]'), '');
+        
+        if (cleanMobile.isEmpty) {
+          throw Exception("Invalid mobile number format");
+        }
+
+        // Try to find the email associated with this mobile number
+        final userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('mobile', isEqualTo: cleanMobile)
+            .limit(1)
+            .get();
+
+        if (userQuery.docs.isNotEmpty) {
+          email = userQuery.docs.first.get('email') ?? "$cleanMobile@bharathistore.com";
+        } else {
+          // Fallback to legacy format
+          email = "$cleanMobile@bharathistore.com";
+        }
+      }
+      
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Check if user document exists in Firestore and is active
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        await FirebaseAuth.instance.signOut();
+        if (mounted) {
+          _showDeletedAccountDialog();
+        }
+        return;
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      if (userData['isActive'] == false) {
+        await FirebaseAuth.instance.signOut();
+        if (mounted) {
+          _showDeletedAccountDialog();
+        }
+        return;
+      }
+
+      if (mounted) {
+        // Go to home page
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const UserHomePage()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = "Login Failed";
+      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+        message = 'Invalid mobile number or password.';
+      } else if (e.code == 'wrong-password') {
+        message = 'The password you entered is incorrect.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The mobile number format is incorrect.';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -29,77 +190,79 @@ class LoginPage extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE5EFE9),
+                              color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5EFE9),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.add_shopping_cart,
-                              color: Color(0xFF094D22),
+                              color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22),
                               size: 44,
                             ),
                           ),
                           const SizedBox(height: 20),
-                          const Text(
+                          Text(
                             'Bharathi Departmental Store',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF094D22),
+                              color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22),
                             ),
                           ),
                           const SizedBox(height: 48),
-                          const Text(
+                          Text(
                             'Welcome back',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E1E1E),
+                              color: isDark ? Colors.white : const Color(0xFF1E1E1E),
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Enter the details to login',
                             style: TextStyle(
                               fontSize: 15,
-                              color: Color(0xFF6B7280),
+                              color: isDark ? Colors.grey[400] : const Color(0xFF6B7280),
                             ),
                           ),
                           const SizedBox(height: 48),
                           
                           // Mobile Number Field
-                          const Align(
+                          Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'MOBILE NUMBER',
+                              'MOBILE NUMBER OR EMAIL',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.0,
-                                color: Color(0xFF4B5563),
+                                color: isDark ? Colors.grey[500] : const Color(0xFF4B5563),
                               ),
                             ),
                           ),
                           TextFormField(
-                            decoration: const InputDecoration(
-                              hintText: 'Enter your mobile number',
-                              hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
-                              prefixIcon: Icon(Icons.phone, color: Color(0xFF374151), size: 20),
-                              prefixIconConstraints: BoxConstraints(minWidth: 40),
+                            controller: _emailMobileController,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                            decoration: InputDecoration(
+                              hintText: 'Enter mobile number or email',
+                              hintStyle: TextStyle(color: isDark ? Colors.grey[700] : const Color(0xFF9CA3AF), fontSize: 15),
+                              prefixIcon: Icon(Icons.person_outline, color: isDark ? Colors.grey[400] : const Color(0xFF374151), size: 20),
+                              prefixIconConstraints: const BoxConstraints(minWidth: 40),
                               enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide: BorderSide(color: isDark ? Colors.grey[800]! : const Color(0xFFE5E7EB)),
                               ),
                               focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Color(0xFF094D22), width: 2),
+                                borderSide: BorderSide(color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22), width: 2),
                               ),
-                              contentPadding: EdgeInsets.symmetric(vertical: 16),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
                             ),
-                            keyboardType: TextInputType.phone,
+                            keyboardType: TextInputType.emailAddress,
                           ),
                           const SizedBox(height: 24),
                           
                           // Password Field
-                          const Align(
+                          Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
                               'PASSWORD',
@@ -107,26 +270,28 @@ class LoginPage extends StatelessWidget {
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.0,
-                                color: Color(0xFF4B5563),
+                                color: isDark ? Colors.grey[500] : const Color(0xFF4B5563),
                               ),
                             ),
                           ),
                           TextFormField(
+                            controller: _passwordController,
                             obscureText: true,
-                            decoration: const InputDecoration(
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                            decoration: InputDecoration(
                               hintText: 'Enter your password',
-                              hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
-                              prefixIcon: Icon(Icons.lock, color: Color(0xFF374151), size: 20),
-                              suffixIcon: Icon(Icons.visibility, color: Color(0xFF374151), size: 20),
-                              prefixIconConstraints: BoxConstraints(minWidth: 40),
-                              suffixIconConstraints: BoxConstraints(minWidth: 40),
+                              hintStyle: TextStyle(color: isDark ? Colors.grey[700] : const Color(0xFF9CA3AF), fontSize: 15),
+                              prefixIcon: Icon(Icons.lock, color: isDark ? Colors.grey[400] : const Color(0xFF374151), size: 20),
+                              suffixIcon: Icon(Icons.visibility, color: isDark ? Colors.grey[400] : const Color(0xFF374151), size: 20),
+                              prefixIconConstraints: const BoxConstraints(minWidth: 40),
+                              suffixIconConstraints: const BoxConstraints(minWidth: 40),
                               enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide: BorderSide(color: isDark ? Colors.grey[800]! : const Color(0xFFE5E7EB)),
                               ),
                               focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Color(0xFF094D22), width: 2),
+                                borderSide: BorderSide(color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22), width: 2),
                               ),
-                              contentPadding: EdgeInsets.symmetric(vertical: 16),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
                             ),
                           ),
                           const SizedBox(height: 48),
@@ -136,12 +301,7 @@ class LoginPage extends StatelessWidget {
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const UserHomePage()),
-                                );
-                              },
+                              onPressed: _isLoading ? null : _login,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF094D22),
                                 shape: RoundedRectangleBorder(
@@ -149,25 +309,27 @@ class LoginPage extends StatelessWidget {
                                 ),
                                 elevation: 0,
                               ),
-                              child: const Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
+                              child: _isLoading
+                                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // Sign up text
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text(
+                              Text(
                                 'Don\'t have an account? ',
-                                style: TextStyle(color: Color(0xFF4B5563), fontSize: 14),
+                                style: TextStyle(color: isDark ? Colors.grey[500] : const Color(0xFF4B5563), fontSize: 14),
                               ),
                               GestureDetector(
                                 onTap: () {
@@ -176,10 +338,10 @@ class LoginPage extends StatelessWidget {
                                     MaterialPageRoute(builder: (context) => const SignupPage()),
                                   );
                                 },
-                                child: const Text(
+                                child: Text(
                                   'Sign up',
                                   style: TextStyle(
-                                    color: Color(0xFF094D22),
+                                    color: isDark ? const Color(0xFF81C784) : const Color(0xFF094D22),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
@@ -200,13 +362,13 @@ class LoginPage extends StatelessWidget {
                               MaterialPageRoute(builder: (context) => const AdminSignInPage()),
                             );
                           },
-                          child: const Text(
+                          child: Text(
                             'ADMIN SIGN-IN',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,
-                              color: Color(0xFF9CA3AF),
+                              color: isDark ? Colors.grey[700] : const Color(0xFF9CA3AF),
                             ),
                           ),
                         ),
